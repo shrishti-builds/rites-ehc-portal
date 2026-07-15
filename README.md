@@ -35,4 +35,6 @@ Serve the `frontend/` directory with any static server:
 ```bash
 npx serve frontend
 # Or simply use VS Code Live Server extension on index.html
+
+###live project link -- https://rites-ehc-portal.netlify.app/
 ```
