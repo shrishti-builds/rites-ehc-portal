@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RITES - Executive Health Checkup Portal</title>
+    <!-- Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <!-- Left Navigation Sidebar -->
+    <aside class="sidebar">
+        <div class="logo-container">
+            <!-- Official RITES Logo -->
+            <img src="rites_logo.png" alt="RITES - The Infrastructure People" style="width:100%; max-width:200px; display:block; margin: 0 auto;">
+        </div>
+
+        <nav class="nav-menu">
+            <div class="nav-section">Dashboard</div>
+            <a href="#" class="nav-item" data-target="dashboard-view">
+                <i class="fas fa-chart-line"></i> Dashboard Overview
+            </a>
+
+            <div class="nav-section">ADMIN</div>
+            <div class="nav-item" style="cursor: default; background: transparent; font-weight: 600;">
+                <i class="fas fa-hospital"></i> Hospital Master
+            </div>
+            <div class="nav-sub-items">
+                <a href="#" class="nav-sub-item active" data-target="add-hospital-view">
+                    <i class="fas fa-th-large"></i> Add Hospital
+                </a>
+                <a href="#" class="nav-sub-item" data-target="update-hospital-view">
+                    <i class="fas fa-th-large"></i> Update Hospital
+                </a>
+                <a href="#" class="nav-sub-item" data-target="update-rates-view">
+                    <i class="fas fa-th-large"></i> Update Hospital Rates
+                </a>
+            </div>
+            <a href="#" class="nav-item" data-target="city-master-view">
+                <i class="fas fa-city"></i> City Master
+            </a>
+            
+            <div class="nav-section">EMPLOYEE</div>
+            <div class="nav-item" style="cursor: default; background: transparent; font-weight: 600;">
+                <i class="fas fa-user-check"></i> Executive Health Checkup
+            </div>
+            <div class="nav-sub-items">
+                <a href="#" class="nav-sub-item" data-target="health-request-view">
+                    <i class="fas fa-file-medical"></i> Health Checkup Request
+                </a>
+            </div>
+
+            <div class="nav-section">SBU</div>
+            <a href="#" class="nav-item" data-target="sbu-approve-view">
+                <i class="fas fa-check-double"></i> Approve/Reject
+            </a>
+
+            <div class="nav-section">HR</div>
+            <a href="#" class="nav-item" data-target="hr-approve-view">
+                <i class="fas fa-user-shield"></i> Approve/Reject
+            </a>
+            <div class="nav-sub-items">
+                <a href="#" class="nav-sub-item" data-target="hr-issue-view">
+                    <i class="fas fa-envelope-open-text"></i> Issue Letter
+                </a>
+                <a href="#" class="nav-sub-item" data-target="hr-upload-view">
+                    <i class="fas fa-file-upload"></i> Upload Bill
+                </a>
+            </div>
+
+            <div class="nav-section">FINANCE</div>
+            <a href="#" class="nav-item" data-target="finance-bill-view">
+                <i class="fas fa-file-invoice-dollar"></i> Bill
+            </a>
+            <a href="#" class="nav-item" data-target="finance-prepare-view">
+                <i class="fas fa-receipt"></i> Prepare Bill
+            </a>
+        </nav>
+    </aside>
+
+    <!-- Main Content Wrapper -->
+    <div class="main-wrapper">
+        
+        <!-- Header Bar -->
+        <header class="header-bar">
+            <div style="display: flex; align-items: center; gap: 15px; margin-right: auto;">
+                <h3 style="font-family: 'Poppins', sans-serif; font-size: 16px; color: var(--text-dark); font-weight: 500;">Executive Health Checkup System</h3>
+                <span id="mode-badge" class="config-badge demo">Demo Mode</span>
+            </div>
+            <div class="user-profile" id="user-profile-btn" title="Open API Connection Settings">
+                <span id="header-user-name" style="font-size: 13px; font-weight: 500; color: var(--text-muted);">Administrator</span>
+                <div class="user-avatar" style="display: flex; align-items: center; justify-content: center; background-color: var(--border-color); color: var(--text-muted); width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--border-color);"><i class="fas fa-user"></i></div>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="content-container">
+
+            <!-- VIEW: Settings / API Configuration -->
+            <section id="settings-view" class="view-section">
+                <div class="card">
+                    <h2 class="card-title">Portal Connection & Settings</h2>
+                    <form id="settings-form">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">Active Mode</label>
+                                <div class="input-wrapper">
+                                    <select class="form-control" id="settings-mode">
+                                        <option value="demo">Demo Mode (Local Mock Data)</option>
+                                        <option value="live">Live Mode (Connect to REST API)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Backend REST Base URL</label>
+                                <div class="input-wrapper">
+                                    <input type="text" class="form-control" id="settings-base-url" placeholder="http://localhost:8080/api">
+                                </div>
+                            </div>
+                            <div class="form-group full-width">
+                                <label class="form-label">Custom Authorization Headers (JSON format)</label>
+                                <div class="input-wrapper">
+                                    <textarea class="form-control" id="settings-headers" rows="2" placeholder='{"Authorization": "Bearer ...", "Accept": "application/json"}'></textarea>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="btn-group">
+                            <button type="submit" class="btn btn-primary">Save Settings</button>
+                            <button type="button" class="btn btn-secondary" id="reset-mock-db">Reset Local Data</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- VIEW: Dashboard -->
+            <section id="dashboard-view" class="view-section">
+                <div class="dashboard-grid">
+                    <div class="metric-card">
+                        <div class="metric-icon green">
+                            <i class="fas fa-hospital"></i>
+                        </div>
+                        <div class="metric-details">
+                            <span class="metric-title">Empanelled Hospitals</span>
+                            <span class="metric-value" id="stat-hospitals">0</span>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-icon blue">
+                            <i class="fas fa-file-prescription"></i>
+                        </div>
+                        <div class="metric-details">
+                            <span class="metric-title">Total Requests</span>
+                            <span class="metric-value" id="stat-requests">0</span>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-icon orange">
+                            <i class="fas fa-hourglass-half"></i>
+                        </div>
+                        <div class="metric-details">
+                            <span class="metric-title">Pending Approvals</span>
+                            <span class="metric-value" id="stat-pending">0</span>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-icon purple">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="metric-details">
+                            <span class="metric-title">Approved Checkups</span>
+                            <span class="metric-value" id="stat-approved">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2 class="card-title">Recent Requests & Approvals</h2>
+                    <div class="table-responsive">
+                        <table class="custom-table" id="dashboard-requests-table">
+                            <thead>
+                                <tr>
+                                    <th>EHC ID</th>
+                                    <th>Employee Name</th>
+                                    <th>Submission Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Dynamic rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: Add Hospital -->
+            <section id="add-hospital-view" class="view-section active">
+                <div class="card">
+                    <h2 class="card-title">Add Hospital Master Data</h2>
+                    <form id="add-hospital-form">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">Hospital Id/Vendor Code<span class="required">*</span></label>
+                                <div class="input-wrapper">
+                                    <input type="text" class="form-control" name="vendorCode" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Hospital Name<span class="required">*</span></label>
+                                <div class="input-wrapper">
+                                    <input type="text" class="form-control" name="hospitalName" required>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Hospital Address Line 1<span class="required">*</span></label>
+                                <div class="input-wrapper">
+                                    <input type="text" class="form-control" name="address1" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Hospital Address Line 2</label>
+                                <div class="input-wrapper">
+                                    <input type="text" class="form-control" name="address2">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">State<span class="required">*</span></label>
+                                <div class="input-wrapper">
+                                    <select class="form-control" id="hospital-state-select" name="state" required>
+                                        <option value="">--Select Value--</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">City<span class="required">*</span></label>
+                                <div class="input-wrapper">
+                                    <select class="form-control" id="hospital-city-select" name="city" required>
+                                        <option value="">--Select Value--</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Pincode<span class="required">*</span></label>
+                                <div class="input-wrapper">
+                                    <input type="text" class="form-control" name="pincode" required pattern="[0-9]{6}">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Contact No (LL)</label>
+                                <div class="input-wrapper">
+                                    <input type="text" class="form-control" name="phoneL" placeholder="e.g. 0124-0000000">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Contact Person<span class="required">*</span></label>
+                                <div class="input-wrapper">
+                                    <input type="text" class="form-control" name="contactPerson" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Contact Person Designation<span class="required">*</span></label>
+                                <div class="input-wrapper">
+                                    <input type="text" class="form-control" name="contactDesignation" required>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Contact Person Email<span class="required">*</span></label>
+                                <div class="input-wrapper">
+                                    <input type="email" class="form-control" name="contactEmail" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Contact No (M)<span class="required">*</span></label>
+                                <div class="input-wrapper">
+                                    <input type="text" class="form-control" name="contactM" required pattern="[0-9]{10}">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Alternate Contact Person</label>
+                                <div class="input-wrapper">
+                                    <input type="text" class="form-control" name="altContactPerson">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Alternate Contact Person Designation</label>
+                                <div class="input-wrapper">
+                                    <input type="text" class="form-control" name="altContactDesignation">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Alternate Contact Person Email</label>
+                                <div class="input-wrapper">
+                                    <input type="email" class="form-control" name="altContactEmail">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Alternate Contact No (M)</label>
+                                <div class="input-wrapper">
+                                    <input type="text" class="form-control" name="altContactM" pattern="[0-9]{10}">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Rate Male<span class="required">*</span></label>
+                                <div class="input-wrapper">
+                                    <input type="number" class="form-control" name="rateMale" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Rate Female<span class="required">*</span></label>
+                                <div class="input-wrapper">
+                                    <input type="number" class="form-control" name="rateFemale" required>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Valid Upto<span class="required">*</span></label>
+                                <div class="input-wrapper">
+                                    <input type="date" class="form-control" name="validUpto" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Concession Info</label>
+                                <div class="input-wrapper">
+                                    <input type="text" class="form-control" name="concessionInfo">
+                                </div>
+                            </div>
+
+                            <div class="form-group full-width">
+                                <label class="form-label">Remarks</label>
+                                <div class="input-wrapper">
+                                    <input type="text" class="form-control" name="remarks">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="btn-group">
+                            <button type="submit" class="btn btn-primary">Submit</button>
+                            <button type="reset" class="btn btn-secondary">Reset</button>
+                            <button type="button" class="btn btn-secondary nav-trigger" data-target="dashboard-view">Close</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- VIEW: Update Hospital -->
+            <section id="update-hospital-view" class="view-section">
+                <div class="card">
+                    <h2 class="card-title">Empanelled Hospitals Directory</h2>
+                    <div class="table-responsive">
+                        <table class="custom-table" id="hospitals-list-table">
+                            <thead>
+                                <tr>
+                                    <th>Vendor Code</th>
+                                    <th>Hospital Name</th>
+                                    <th>City</th>
+                                    <th>Male Rate</th>
+                                    <th>Female Rate</th>
+                                    <th>Valid Upto</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Dynamic rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: Health Checkup Request -->
+            <section id="health-request-view" class="view-section">
+                <div class="card">
+                    <h2 class="card-title">Executive Health Checkup</h2>
+                    <form id="health-request-form">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">Employee No.<span class="required">*</span></label>
+                                <div class="input-wrapper">
+                                    <input type="text" class="form-control" id="req-emp-no" value="10124" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Employee Name<span class="required">*</span></label>
+                                <div class="input-wrapper">
+                                    <input type="text" class="form-control" id="req-emp-name" value="ANJANI UPADHYAY" required>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Designation<span class="required">*</span></label>
+                                <div class="input-wrapper">
+                                    <input type="text" class="form-control" id="req-designation" value="Manager (IT)" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Division<span class="required">*</span></label>
+                                <div class="input-wrapper">
+                                    <input type="text" class="form-control" id="req-division" value="INFORMATION TECHNOLOGY" required>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Emp Mob No.<span class="required">*</span></label>
+                                <div class="input-wrapper">
+                                    <input type="text" class="form-control" id="req-mobile" required pattern="[0-9]{10}">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Emp Landline/Extn No.</label>
+                                <div class="input-wrapper">
+                                    <input type="text" class="form-control" id="req-landline">
+                                </div>
+                            </div>
+
+                            <div class="form-group full-width">
+                                <label class="form-label">Emp No. of Sub Unit/PU head<span class="required">*</span></label>
+                                <div class="input-wrapper">
+                                    <input type="text" class="form-control" id="req-pu-head" required>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">State</label>
+                                <div class="input-wrapper">
+                                    <select class="form-control" id="req-state-select">
+                                        <option value="">--Select Value--</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">City</label>
+                                <div class="input-wrapper">
+                                    <select class="form-control" id="req-city-select">
+                                        <option value="">--Select Value--</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-group full-width">
+                                <label class="form-label">Hospital Name<span class="required">*</span></label>
+                                <div class="input-wrapper">
+                                    <select class="form-control" id="req-hospital-select" required>
+                                        <option value="">--Select Value--</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Dependents Table -->
+                        <div style="margin-top: 30px; margin-bottom: 20px;">
+                            <h4 style="font-size: 14px; margin-bottom: 12px; font-weight: 600;">Dependents Details</h4>
+                            <div class="table-responsive">
+                                <table class="custom-table" id="dependents-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Select</th>
+                                            <th>Dependent Name</th>
+                                            <th>DOB</th>
+                                            <th>Age(Years)</th>
+                                            <th>Eligible</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="dependents-table-body">
+                                        <!-- Will be populated dynamically from selected employee profile -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="disclaimer-container">
+                            <input type="checkbox" id="req-disclaimer" required>
+                            <label for="req-disclaimer" class="disclaimer-text">
+                                Disclaimer<span class="required">*</span><br>
+                                I hereby declare that above submission is correct as per my knowledge. If any fact later found incorrect then suitable action is liable to be taken against me.
+                            </label>
+                        </div>
+
+                        <div class="btn-group">
+                            <button type="submit" class="btn btn-primary">Submit</button>
+                            <button type="reset" class="btn btn-secondary">Reset</button>
+                            <button type="button" class="btn btn-secondary nav-trigger" data-target="dashboard-view">Close</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- VIEW: HR Approve/Reject Health Checkup -->
+            <section id="hr-approve-view" class="view-section">
+                <div class="card">
+                    <h2 class="card-title">Approve/Reject Health Checkup Request</h2>
+                    
+                    <div class="datatable-header">
+                        <div class="datatable-length">
+                            Show 
+                            <select id="hr-table-length">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                            </select> 
+                            entries
+                        </div>
+                        <div class="datatable-search">
+                            Search: 
+                            <input type="search" id="hr-table-search">
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="custom-table" id="hr-requests-table">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" id="hr-select-all"></th>
+                                    <th>EHC Id</th>
+                                    <th>Emp Id</th>
+                                    <th>Emp/Dependant Name</th>
+                                    <th>Relation</th>
+                                    <th>Gender</th>
+                                    <th>DOB</th>
+                                    <th>Age(Years)</th>
+                                    <th>Paid By</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Populate dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="datatable-footer">
+                        <span id="hr-table-info">Showing 0 to 0 of 0 entries</span>
+                        <div class="pagination">
+                            <button id="hr-prev-btn" disabled>Previous</button>
+                            <button id="hr-next-btn" disabled>Next</button>
+                        </div>
+                    </div>
+
+                    <!-- Remarks Area -->
+                    <div class="remarks-card">
+                        <label class="form-label" style="font-weight: 600;">Remarks</label>
+                        <textarea class="remarks-textarea" id="hr-remarks" placeholder="Enter approval/rejection remarks here..."></textarea>
+                        
+                        <div class="btn-group" style="margin-top: 15px;">
+                            <button type="button" class="btn btn-primary" id="btn-hr-approve">Approve</button>
+                            <button type="button" class="btn btn-secondary" id="btn-hr-reject" style="background-color: #f43f5e;">Reject</button>
+                            <button type="button" class="btn btn-secondary nav-trigger" data-target="dashboard-view">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: Update Hospital Rates -->
+            <section id="update-rates-view" class="view-section">
+                <div class="card">
+                    <h2 class="card-title">Update Hospital Rates</h2>
+                    <form id="update-rates-form">
+                        <div class="form-grid">
+                            <div class="form-group full-width">
+                                <label class="form-label">Select Hospital<span class="required">*</span></label>
+                                <div class="input-wrapper">
+                                    <select class="form-control" id="update-rates-hospital-select" required>
+                                        <option value="">--Select Hospital--</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Rate Male (₹)<span class="required">*</span></label>
+                                <div class="input-wrapper">
+                                    <input type="number" class="form-control" id="update-rates-male" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Rate Female (₹)<span class="required">*</span></label>
+                                <div class="input-wrapper">
+                                    <input type="number" class="form-control" id="update-rates-female" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="btn-group">
+                            <button type="submit" class="btn btn-primary">Update Rates</button>
+                            <button type="button" class="btn btn-secondary nav-trigger" data-target="dashboard-view">Close</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- VIEW: City Master -->
+            <section id="city-master-view" class="view-section">
+                <div class="card">
+                    <h2 class="card-title">City Master Management</h2>
+                    
+                    <form id="add-city-form" style="margin-bottom: 30px;">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">State Name<span class="required">*</span></label>
+                                <div class="input-wrapper">
+                                    <input type="text" class="form-control" id="new-city-state" placeholder="e.g. Haryana" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">City Name<span class="required">*</span></label>
+                                <div class="input-wrapper">
+                                    <input type="text" class="form-control" id="new-city-name" placeholder="e.g. Gurugram" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="btn-group">
+                            <button type="submit" class="btn btn-primary">Add City</button>
+                            <button type="reset" class="btn btn-secondary">Reset</button>
+                        </div>
+                    </form>
+
+                    <h3 class="card-title" style="font-size: 16px; margin-top: 20px; margin-bottom: 15px;">Configured States & Cities</h3>
+                    <div class="table-responsive">
+                        <table class="custom-table" id="city-master-table">
+                            <thead>
+                                <tr>
+                                    <th>State</th>
+                                    <th>Cities</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Populate dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: SBU Approve/Reject Queue -->
+            <section id="sbu-approve-view" class="view-section">
+                <div class="card">
+                    <h2 class="card-title">SBU Approve/Reject Queue</h2>
+                    <div class="datatable-header">
+                        <div class="datatable-length">
+                            Show 
+                            <select id="sbu-table-length">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                            </select> 
+                            entries
+                        </div>
+                        <div class="datatable-search">
+                            Search: 
+                            <input type="search" id="sbu-table-search">
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="custom-table" id="sbu-requests-table">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" id="sbu-select-all"></th>
+                                    <th>EHC Id</th>
+                                    <th>Emp Id</th>
+                                    <th>Emp Name</th>
+                                    <th>Hospital</th>
+                                    <th>Submission Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Populate dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="datatable-footer">
+                        <span id="sbu-table-info">Showing 0 to 0 of 0 entries</span>
+                        <div class="pagination">
+                            <button id="sbu-prev-btn" disabled>Previous</button>
+                            <button id="sbu-next-btn" disabled>Next</button>
+                        </div>
+                    </div>
+                    <!-- Remarks Area -->
+                    <div class="remarks-card">
+                        <label class="form-label" style="font-weight: 600;">Remarks</label>
+                        <textarea class="remarks-textarea" id="sbu-remarks" placeholder="Enter SBU approval/rejection remarks here..."></textarea>
+                        <div class="btn-group" style="margin-top: 15px;">
+                            <button type="button" class="btn btn-primary" id="btn-sbu-approve">Approve</button>
+                            <button type="button" class="btn btn-secondary" id="btn-sbu-reject" style="background-color: #f43f5e;">Reject</button>
+                            <button type="button" class="btn btn-secondary nav-trigger" data-target="dashboard-view">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: Issue Medical Referral Letter -->
+            <section id="hr-issue-view" class="view-section">
+                <div class="card">
+                    <h2 class="card-title">Issue Medical Referral Letter</h2>
+                    <div class="table-responsive">
+                        <table class="custom-table" id="hr-issue-table">
+                            <thead>
+                                <tr>
+                                    <th>EHC Id</th>
+                                    <th>Emp Name</th>
+                                    <th>Hospital</th>
+                                    <th>Submission Date</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Populate dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Letter Preview template container -->
+                    <div id="referral-letter-preview-card" class="card" style="display: none; border: 2px dashed var(--rites-green); margin-top: 20px;">
+                        <div style="text-align: center; border-bottom: 2px solid var(--rites-green); padding-bottom: 15px; margin-bottom: 20px;">
+                            <h3 style="color: var(--rites-green); font-family: 'Poppins', sans-serif;">RITES LIMITED</h3>
+                            <p style="font-size: 11px; color: var(--text-muted);">A Government of India Enterprise</p>
+                            <p style="font-weight: 600; margin-top: 5px; font-size: 14px; text-decoration: underline;">MEDICAL REFERRAL LETTER</p>
+                        </div>
+                        <div style="font-size: 13px; line-height: 1.6; color: var(--text-dark);">
+                            <p><strong>Letter Ref No:</strong> RITES/CO/HR/EHC/2026/<span id="let-ehcid">EHC-XXXX</span></p>
+                            <p style="margin-top: 10px;">To,<br><strong>The Medical Superintendent / Contact Person,</strong><br><span id="let-hosp-name">Hospital Name</span></p>
+                            <p style="margin-top: 12px;">Subject: <strong>Executive Health Checkup of RITES Executive & Dependents</strong></p>
+                            <p style="margin-top: 10px;">Dear Sir/Madam,</p>
+                            <p>This is to refer <strong><span id="let-emp-name">Employee Name</span></strong> (Employee No. <span id="let-emp-no">1000</span>, Designation: <span id="let-designation">Designation</span>) for Executive Health Checkup at your empanelled facility.</p>
+                            <p>Please conduct health checkups for the following eligible individuals:</p>
+                            <div style="margin: 10px 0;">
+                                <table class="custom-table" style="background: var(--bg-light); border: 1px solid var(--border-color);">
+                                    <thead>
+                                        <tr>
+                                            <th>Dependent Name</th>
+                                            <th>Relation</th>
+                                            <th>Gender</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="let-dependents-list">
+                                        <!-- Dynamic list of dependents -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p>The contract rates applicable for the checkups are: <strong>Male Rate: ₹<span id="let-rate-male">0</span></strong> | <strong>Female Rate: ₹<span id="let-rate-female">0</span></strong>.</p>
+                            <p>The billing invoice along with checkup report should be submitted to HR Department of RITES Limited for processing of payments.</p>
+                            <p>This referral letter is valid upto: <strong><span id="let-valid-date">Valid Date</span></strong>.</p>
+                            
+                            <div style="margin-top: 40px; display: flex; justify-content: space-between; align-items: flex-end;">
+                                <div>
+                                    <p style="font-size: 11px; color: var(--text-muted);">Digitally Signed by HR Department</p>
+                                    <p><strong>RITES HR Division</strong></p>
+                                </div>
+                                <button class="btn btn-primary" id="btn-confirm-issue-letter">Confirm & Issue Letter</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: Upload Checkup Bill -->
+            <section id="hr-upload-view" class="view-section">
+                <div class="card">
+                    <h2 class="card-title">Upload Checkup Bill</h2>
+                    <div class="table-responsive">
+                        <table class="custom-table" id="hr-upload-table">
+                            <thead>
+                                <tr>
+                                    <th>EHC Id</th>
+                                    <th>Emp Name</th>
+                                    <th>Hospital</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Populate dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Upload Form Modal/Inline -->
+                    <div id="bill-upload-card" class="card" style="display: none; border: 1px solid var(--primary-blue); margin-top: 20px;">
+                        <h3 class="card-title" style="font-size: 16px; margin-bottom: 15px;">Billing Details for <span id="upload-ehcid">EHC-XXXX</span></h3>
+                        <form id="bill-upload-form">
+                            <input type="hidden" id="upload-hidden-ehcid">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label class="form-label">Bill / Invoice Number<span class="required">*</span></label>
+                                    <div class="input-wrapper">
+                                        <input type="text" class="form-control" id="bill-number" required placeholder="e.g. INV/2026/0045">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Bill / Invoice Date<span class="required">*</span></label>
+                                    <div class="input-wrapper">
+                                        <input type="date" class="form-control" id="bill-date" required>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Invoice Amount (₹)<span class="required">*</span></label>
+                                    <div class="input-wrapper">
+                                        <input type="number" class="form-control" id="bill-amount" required>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Select Report / Invoice Document<span class="required">*</span></label>
+                                    <div class="input-wrapper">
+                                        <input type="file" class="form-control" id="bill-file" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="btn-group">
+                                <button type="submit" class="btn btn-primary">Submit Bill for Audit</button>
+                                <button type="button" class="btn btn-secondary" id="btn-cancel-upload">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: Finance Bill Approvals -->
+            <section id="finance-bill-view" class="view-section">
+                <div class="card">
+                    <h2 class="card-title">Finance Bill Approvals</h2>
+                    <div class="table-responsive">
+                        <table class="custom-table" id="finance-bill-table">
+                            <thead>
+                                <tr>
+                                    <th>EHC Id</th>
+                                    <th>Emp Name</th>
+                                    <th>Hospital</th>
+                                    <th>Bill Number</th>
+                                    <th>Bill Date</th>
+                                    <th>Bill Amount</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Populate dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Audit Form -->
+                    <div id="finance-audit-card" class="card" style="display: none; border: 1px solid var(--rites-green); margin-top: 20px;">
+                        <h3 class="card-title" style="font-size: 16px; margin-bottom: 15px;">Audit Invoice: <span id="audit-ehcid">EHC-XXXX</span></h3>
+                        <div style="font-size: 13px; margin-bottom: 20px; line-height: 1.6; background-color: var(--bg-light); padding: 15px; border-radius: 6px; border: 1px solid var(--border-color);">
+                            <p><strong>Employee Name:</strong> <span id="audit-empname">-</span></p>
+                            <p><strong>Hospital Name:</strong> <span id="audit-hosp">-</span></p>
+                            <p><strong>Bill Number:</strong> <span id="audit-billno">-</span></p>
+                            <p><strong>Bill Date:</strong> <span id="audit-billdate">-</span></p>
+                            <p><strong>Claimed Amount:</strong> ₹<span id="audit-billamount">0</span></p>
+                            <p><strong>Attached File:</strong> <span id="audit-filename" style="color: var(--primary-blue); font-weight: 500;">-</span></p>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 15px;">
+                            <label class="form-label">Auditor Remarks / Notes<span class="required">*</span></label>
+                            <textarea class="remarks-textarea" id="finance-audit-remarks" placeholder="Add audit notes here..."></textarea>
+                        </div>
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-primary" id="btn-finance-approve-bill">Approve Bill</button>
+                            <button type="button" class="btn btn-secondary" id="btn-finance-reject-bill" style="background-color: #f43f5e;">Reject Bill</button>
+                            <button type="button" class="btn btn-secondary" id="btn-finance-cancel-audit">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: Prepare Medical Disbursement -->
+            <section id="finance-prepare-view" class="view-section">
+                <div class="card">
+                    <h2 class="card-title">Prepare Medical Disbursement</h2>
+                    <div class="table-responsive">
+                        <table class="custom-table" id="finance-disburse-table">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" id="disburse-select-all"></th>
+                                    <th>EHC Id</th>
+                                    <th>Emp Name</th>
+                                    <th>Hospital</th>
+                                    <th>Bill Number</th>
+                                    <th>Approved Amount</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Populate dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Payout Generation Form -->
+                    <div class="remarks-card">
+                        <h3 class="card-title" style="font-size: 16px; margin-bottom: 15px;">Batch Payout Details</h3>
+                        <form id="disburse-form">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label class="form-label">Payment Mode<span class="required">*</span></label>
+                                    <div class="input-wrapper">
+                                        <select class="form-control" id="payout-mode" required>
+                                            <option value="NEFT">NEFT / RTGS</option>
+                                            <option value="Corporate Card">Corporate Card</option>
+                                            <option value="Direct Transfer">Direct Transfer</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Bank Reference / UTR Number<span class="required">*</span></label>
+                                    <div class="input-wrapper">
+                                        <input type="text" class="form-control" id="payout-ref" required placeholder="e.g. UTR-9988223344">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="btn-group">
+                                <button type="submit" class="btn btn-primary">Generate Disbursement Payout</button>
+                                <button type="button" class="btn btn-secondary nav-trigger" data-target="dashboard-view">Close</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Floating scroll-to-top FAB -->
+    <button class="fab-scroll-top" id="scroll-to-top" title="Scroll to Top">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <!-- JavaScripts -->
+    <script src="api.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
