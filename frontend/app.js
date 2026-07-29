@@ -471,11 +471,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const result = await window.api.submitRequest(request);
         if (result.success) {
-            alert("Health Checkup Request submitted successfully!");
+            alert("Health Checkup Request submitted successfully! EHC ID: " + (result.data && result.data.ehcId ? result.data.ehcId : ''));
             form.reset();
             // Re-render empty table
             document.getElementById("dependents-table-body").innerHTML = "";
+            await refreshDashboard();
             switchView("dashboard-view");
+        } else {
+            alert("Failed to submit request: " + (result.message || "Unknown error. Please check your connection and try again."));
         }
     }
 

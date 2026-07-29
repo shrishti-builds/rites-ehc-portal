@@ -765,21 +765,29 @@ class RitesEhcApi {
         localStorage.setItem(CONFIG_KEY, JSON.stringify(newConfig));
     }
 
-    // Role-Based Auth Login (Demo)
+    // Role-Based Auth Login
     async login(role) {
         const config = this.getConfig();
         if (config.mode === 'live') {
             try {
-                const response = await fetch(`${config.baseUrl}/auth/demo-login?role=${role}`);
+                // Clear old token before fetching new role-specific one
+                config.headers['Authorization'] = '';
+                this.updateConfig(config);
+
+                const response = await fetch(`${config.baseUrl}/auth/demo-login?role=${encodeURIComponent(role)}`);
                 if (response.ok) {
                     const data = await response.json();
                     config.headers['Authorization'] = 'Bearer ' + data.token;
                     this.updateConfig(config);
+                    console.log(`[Live] Logged in as ${data.role}, token acquired.`);
                     return { success: true, role: data.role };
                 }
-                return { success: false, message: 'Login failed' };
+                const errText = await response.text().catch(() => response.status);
+                console.error('Live login failed:', response.status, errText);
+                return { success: false, message: `Login failed (${response.status})` };
             } catch (e) {
-                console.error("Live Auth Error, falling back to Demo:", e);
+                console.error("Live Auth network error:", e);
+                return { success: false, message: 'Network error during login' };
             }
         }
         // In demo mode, just pretend we logged in
@@ -878,20 +886,46 @@ class RitesEhcApi {
         return mockEmployees[empNo] || null;
     }
 
+    // Helper: ensure we have a valid token in live mode
+    async ensureLiveToken() {
+        const config = this.getConfig();
+        if (config.mode !== 'live') return;
+        // If no Authorization header, auto-fetch a demo EMPLOYEE token
+        if (!config.headers['Authorization']) {
+            try {
+                const res = await fetch(`${config.baseUrl}/auth/demo-login?role=EMPLOYEE`);
+                if (res.ok) {
+                    const data = await res.json();
+                    config.headers['Authorization'] = 'Bearer ' + data.token;
+                    this.updateConfig(config);
+                }
+            } catch (e) {
+                console.warn('Could not auto-fetch token:', e);
+            }
+        }
+    }
+
     // EHC Requests — paginated + searchable
     async getRequests() {
         // backward-compat: returns flat array (first page, large size) for old callers
         const paged = await this.getRequestsPaged(0, 9999, '');
-        return paged.content || paged; // live returns paged obj; demo may return array
+        if (paged && paged.content) return paged.content;
+        if (Array.isArray(paged)) return paged;
+        return []; // never return undefined
     }
 
     async getRequestsPaged(page = 0, size = 10, search = '') {
         const config = this.getConfig();
         if (config.mode === 'live') {
+            await this.ensureLiveToken();
+            const freshConfig = this.getConfig(); // re-read after possible token update
             try {
                 const params = new URLSearchParams({ page, size, search });
-                const response = await fetch(`${config.baseUrl}/requests?${params}`, { headers: config.headers });
-                return await response.json(); // { content, page, size, totalElements, totalPages, last }
+                const response = await fetch(`${freshConfig.baseUrl}/requests?${params}`, { headers: freshConfig.headers });
+                if (response.ok) {
+                    return await response.json(); // { content, page, size, totalElements, totalPages, last }
+                }
+                console.error('Live API returned', response.status, '- falling back to demo');
             } catch (e) {
                 console.error("Live API Error, falling back to Demo:", e);
             }
@@ -927,19 +961,40 @@ class RitesEhcApi {
     async submitRequest(request) {
         const config = this.getConfig();
         if (config.mode === 'live') {
+            await this.ensureLiveToken();
+            const freshConfig = this.getConfig();
             try {
-                const response = await fetch(`${config.baseUrl}/requests`, {
+                const response = await fetch(`${freshConfig.baseUrl}/requests`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', ...config.headers },
+                    headers: { 'Content-Type': 'application/json', ...freshConfig.headers },
                     body: JSON.stringify(request)
                 });
-                return await response.json();
+                const result = await response.json();
+                if (response.ok) {
+                    // Also save to localStorage so dashboard shows it immediately
+                    const requests = JSON.parse(localStorage.getItem(REQUESTS_KEY)) || [];
+                    const newLocalReq = {
+                        ...request,
+                        ehcId: (result.data && result.data.ehcId) || result.ehcId || `EHC-${Date.now().toString().slice(-6)}`,
+                        status: 'Pending SBU',
+                        remarks: '',
+                        submissionDate: new Date().toLocaleDateString('en-GB')
+                    };
+                    requests.push(newLocalReq);
+                    localStorage.setItem(REQUESTS_KEY, JSON.stringify(requests));
+                    return { success: true, message: result.message || "Request submitted successfully", data: newLocalReq };
+                }
+                // Backend returned error (4xx/5xx)
+                console.error('Live submit failed:', response.status, result);
+                return { success: false, message: result.message || `Server error: ${response.status}` };
             } catch (e) {
-                console.error("Live API Error, falling back to Demo:", e);
+                console.error("Live API network error:", e);
+                // Network error — fall through to demo mode
             }
         }
 
-        const requests = JSON.parse(localStorage.getItem(REQUESTS_KEY));
+        // Demo mode (or live mode network fallback)
+        const requests = JSON.parse(localStorage.getItem(REQUESTS_KEY)) || [];
         const newRequest = {
             ...request,
             ehcId: `EHC-${Date.now().toString().slice(-6)}`,
@@ -955,19 +1010,33 @@ class RitesEhcApi {
     async updateRequestStatus(ehcId, status, remarks) {
         const config = this.getConfig();
         if (config.mode === 'live') {
+            await this.ensureLiveToken();
+            const freshConfig = this.getConfig();
             try {
-                const response = await fetch(`${config.baseUrl}/requests/${ehcId}`, {
+                const response = await fetch(`${freshConfig.baseUrl}/requests/${ehcId}`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', ...config.headers },
+                    headers: { 'Content-Type': 'application/json', ...freshConfig.headers },
                     body: JSON.stringify({ status, remarks })
                 });
-                return await response.json();
+                const result = await response.json();
+                if (response.ok) {
+                    // Mirror to localStorage so local views refresh correctly
+                    const requests = JSON.parse(localStorage.getItem(REQUESTS_KEY)) || [];
+                    const index = requests.findIndex(r => r.ehcId === ehcId);
+                    if (index !== -1) {
+                        requests[index].status = status;
+                        requests[index].remarks = remarks;
+                        localStorage.setItem(REQUESTS_KEY, JSON.stringify(requests));
+                    }
+                    return { success: true, message: result.message || `Status updated to ${status}`, data: result.data || requests[requests.findIndex(r => r.ehcId === ehcId)] };
+                }
+                return { success: false, message: result.message || `Server error: ${response.status}` };
             } catch (e) {
                 console.error("Live API Error, falling back to Demo:", e);
             }
         }
 
-        const requests = JSON.parse(localStorage.getItem(REQUESTS_KEY));
+        const requests = JSON.parse(localStorage.getItem(REQUESTS_KEY)) || [];
         const index = requests.findIndex(r => r.ehcId === ehcId);
         if (index !== -1) {
             requests[index].status = status;
