@@ -931,7 +931,10 @@ class RitesEhcApi {
             const freshConfig = this.getConfig(); // re-read after possible token update
             try {
                 const params = new URLSearchParams({ page, size, search });
-                const response = await fetch(`${freshConfig.baseUrl}/requests?${params}`, { headers: freshConfig.headers });
+                const response = await fetch(`${freshConfig.baseUrl}/requests?${params}`, { 
+                    headers: freshConfig.headers,
+                    cache: 'no-store' 
+                });
                 if (response.ok) {
                     return await response.json(); // { content, page, size, totalElements, totalPages, last }
                 }
