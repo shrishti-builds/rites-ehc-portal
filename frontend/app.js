@@ -106,7 +106,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } else if (role === "SBU") {
             document.querySelectorAll("[data-role-section='ADMIN'], [data-role-item='ADMIN'], [data-role-section='HR'], [data-role-item='HR'], [data-role-section='FINANCE'], [data-role-item='FINANCE']").forEach(el => el.style.display = "none");
         } else if (role === "HR") {
-            document.querySelectorAll("[data-role-section='ADMIN'], [data-role-item='ADMIN'], [data-role-section='SBU'], [data-role-item='SBU'], [data-role-section='FINANCE'], [data-role-item='FINANCE']").forEach(el => el.style.display = "none");
+            document.querySelectorAll("[data-role-section='SBU'], [data-role-item='SBU'], [data-role-section='FINANCE'], [data-role-item='FINANCE']").forEach(el => el.style.display = "none");
         } else if (role === "FINANCE") {
             document.querySelectorAll("[data-role-section='ADMIN'], [data-role-item='ADMIN'], [data-role-section='SBU'], [data-role-item='SBU'], [data-role-section='HR'], [data-role-item='HR']").forEach(el => el.style.display = "none");
         }
