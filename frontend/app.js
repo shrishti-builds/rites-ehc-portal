@@ -62,8 +62,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 else if (username.includes("fin")) roleSwitcher.value = "FINANCE";
                 else roleSwitcher.value = "EMPLOYEE";
 
-                // Trigger the role switcher logic so the UI updates and token is fetched
-                roleSwitcher.dispatchEvent(new Event("change"));
+                // Fetch token and refresh UI
+                window.api.login(roleSwitcher.value).then(res => {
+                    const roleLoginStatus = document.getElementById("role-login-status");
+                    if (res.success && window.api.getConfig().mode === 'live') {
+                        if (roleLoginStatus) roleLoginStatus.style.display = "inline";
+                    } else {
+                        if (roleLoginStatus) roleLoginStatus.style.display = "none";
+                    }
+                    const activeView = document.querySelector(".view-section.active");
+                    if (activeView) switchView(activeView.id);
+                });
 
                 // Update profile name
                 document.getElementById("header-user-name").textContent = username.toUpperCase();
@@ -125,19 +134,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
 
-            roleSwitcher.addEventListener("change", async (e) => {
-                const role = e.target.value;
-                const res = await window.api.login(role);
-                if (res.success && window.api.getConfig().mode === 'live') {
-                    roleLoginStatus.style.display = "inline";
-                } else {
-                    roleLoginStatus.style.display = "none";
-                }
-                
-                // Refresh current view based on new role
-                const activeView = document.querySelector(".view-section.active");
-                if (activeView) {
-                    switchView(activeView.id);
+            roleSwitcher.addEventListener("change", (e) => {
+                const overlay = document.getElementById("presentation-login-overlay");
+                const logoutBtn = document.getElementById("logout-btn");
+                if (overlay) {
+                    overlay.style.display = "flex";
+                    overlay.style.opacity = "1";
+                    document.getElementById("login-username").value = "";
+                    document.getElementById("login-password").value = "";
+                    if (logoutBtn) logoutBtn.style.display = "none";
+                    document.getElementById("header-user-name").textContent = "Administrator";
+                    applyRoleNavVisibility("ALL");
                 }
             });
         }
