@@ -3,6 +3,9 @@ package com.rites.ehc;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.Date;
+import java.sql.SQLException;
+
 
 public final class SeedData {
     private SeedData() {
@@ -24,7 +27,12 @@ public final class SeedData {
                 insertCity(conn, "West Bengal", "Howrah");
                 insertCity(conn, "West Bengal", "Durgapur");
             }
-            if (!hasRows(conn, "ehc_employees")) {
+            int empCount = 0;
+            try (java.sql.PreparedStatement ps = conn.prepareStatement("SELECT COUNT(*) FROM ehc_employees");
+                 java.sql.ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) empCount = rs.getInt(1);
+            }
+            if (empCount == 0) {
                 insertEmployee(conn, "10124", "ANJANI UPADHYAY", "Manager (IT)", "INFORMATION TECHNOLOGY", "9876543210", "0124-2818000", "1975-01-26", "Male");
                 insertEmployee(conn, "10245", "RAHUL KUMAR", "Assistant Manager", "CIVIL ENGINEERING", "9988776655", "0124-2818111", "1982-05-15", "Male");
                 insertEmployeeDependent(conn, "10124", "ANJANI UPADHYAY", "Self", "1975-01-26", "Male");
@@ -55,8 +63,7 @@ public final class SeedData {
                  java.sql.ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) count = rs.getInt(1);
             }
-            if (count < 40) {
-                try (java.sql.Statement st = conn.createStatement()) { st.executeUpdate("DELETE FROM ehc_hospitals"); }
+            if (count == 0) {
                 insertHospital(conn, "HOSP001", "Medanta - The Medicity", "Sector 38", "Near NH-8", "Haryana", "Gurugram", "122001", "0124-4141414", "Dr. Sandeep Dewan", "Medical Director", "contact@medanta.org", "9999911111", "Sunita Rao", "Admin Coordinator", "sunita.r@medanta.org", "9888822222", 4500, 5200, "2027-12-31", "10% discount on additional tests", "Preferred hospital for executives");
                 insertHospital(conn, "HOSP002", "Fortis Memorial Research Institute", "Sector 44", "Opposite HUDA City Centre", "Haryana", "Gurugram", "122002", "0124-4962200", "Dr. Ritu Garg", "Zonal Director", "info@fortis.com", "9911223344", "Amit Kumar", "Operations Head", "amit.k@fortis.com", "9822334455", 4800, 5500, "2027-06-30", "Free consultation follow-up", "High quality facilities");
                 insertHospital(conn, "HOSP003", "Paras Hospital Gurugram", "C-1, Sushant Lok", "Phase-1", "Haryana", "Gurugram", "122002", "0124-4585555", "Dr. Nikhil Chandra", "CEO", "info@parashospitals.com", "9810101010", "Rohit Negi", "Client Relations", "rohit.n@parashospitals.com", "9810202020", 4200, 4900, "2027-09-30", "5% concession on lab tests", "ISO certified facilities");
@@ -101,62 +108,43 @@ public final class SeedData {
                 insertHospital(conn, "HOSP042", "Yashoda Hospital Somajiguda", "Rajbhavan Road", "Somajiguda", "Telangana", "Hyderabad", "500082", "040-45670000", "Dr. G. Venkateswar Rao", "MD", "corporate@yashodahospitals.com", "9849234567", "Kavitha Reddy", "Corporate Relations", "kavitha.r@yashodahospitals.com", "9849345678", 4300, 5000, "2027-09-30", "10% off diagnostic package", "Well known in twin cities");
                 insertHospital(conn, "HOSP043", "KIMS Hospital Secunderabad", "1-8-31/1, Minister Road", "Secunderabad", "Telangana", "Secunderabad", "500003", "040-44885000", "Dr. Bhaskara Rao", "Director", "corporate.sec@kimshospitals.com", "9848567890", "Srinivas Kumar", "Admin", "srinivas.k@kimshospitals.com", "9848678901", 4000, 4700, "2027-12-31", "Free ECG & X-ray with package", "NABH accredited");
             }
+            boolean reseedNeeded = false;
+            try (java.sql.PreparedStatement ps = conn.prepareStatement("SELECT COUNT(*) FROM ehc_requests WHERE status LIKE '%\\_%'");
+                 java.sql.ResultSet rs = ps.executeQuery()) {
+                if (rs.next() && rs.getInt(1) > 0) reseedNeeded = true;
+            }
             int reqCount = 0;
             try (java.sql.PreparedStatement ps = conn.prepareStatement("SELECT COUNT(*) FROM ehc_requests");
                  java.sql.ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) reqCount = rs.getInt(1);
             }
-            if (reqCount < 10) {
-                try (java.sql.Statement st = conn.createStatement()) { 
-                    st.executeUpdate("DELETE FROM ehc_request_dependents");
-                    st.executeUpdate("DELETE FROM ehc_requests"); 
-                }
-                String r1 = "{\"empNo\":\"10124\",\"empName\":\"ANJANI UPADHYAY\",\"designation\":\"Manager (IT)\",\"division\":\"INFORMATION TECHNOLOGY\",\"mobile\":\"9876543210\",\"landline\":\"0124-2818000\",\"puHead\":\"S K Sharma\",\"stateName\":\"Haryana\",\"cityName\":\"Gurugram\",\"hospitalName\":\"Medanta - The Medicity\",\"submissionDate\":\"2026-07-01\",\"dependents\":[{\"name\":\"ANJANI UPADHYAY\",\"relation\":\"Self\",\"dob\":\"1975-01-26\",\"gender\":\"Male\"}]}";
-                String id1 = com.rites.ehc.JsonUtil.jsonValue(com.rites.ehc.JdbcRepository.createRequest(r1), "ehcId").orElse("");
-                com.rites.ehc.JdbcRepository.updateRequestStatus(id1, "Submitted", "");
+            if (reqCount == 0) {
                 
-                String r2 = "{\"empNo\":\"10245\",\"empName\":\"RAHUL KUMAR\",\"designation\":\"Assistant Manager\",\"division\":\"CIVIL ENGINEERING\",\"mobile\":\"9988776655\",\"landline\":\"0124-2818111\",\"puHead\":\"M N Singh\",\"stateName\":\"Delhi\",\"cityName\":\"New Delhi\",\"hospitalName\":\"Indraprastha Apollo Hospital\",\"submissionDate\":\"2026-07-02\",\"dependents\":[{\"name\":\"RAHUL KUMAR\",\"relation\":\"Self\",\"dob\":\"1982-05-15\",\"gender\":\"Male\"},{\"name\":\"PRIYA KUMARI\",\"relation\":\"Spouse\",\"dob\":\"1985-09-12\",\"gender\":\"Female\"}]}";
-                String id2 = com.rites.ehc.JsonUtil.jsonValue(com.rites.ehc.JdbcRepository.createRequest(r2), "ehcId").orElse("");
-                com.rites.ehc.JdbcRepository.updateRequestStatus(id2, "HR_APPROVED", "Approved by HR");
-                
-                String r3 = "{\"empNo\":\"10312\",\"empName\":\"SUNITA VERMA\",\"designation\":\"Deputy General Manager\",\"division\":\"HUMAN RESOURCES\",\"mobile\":\"9811223344\",\"landline\":\"0124-2818222\",\"puHead\":\"Self\",\"stateName\":\"Maharashtra\",\"cityName\":\"Mumbai\",\"hospitalName\":\"Hinduja Hospital\",\"submissionDate\":\"2026-07-03\",\"dependents\":[{\"name\":\"SUNITA VERMA\",\"relation\":\"Self\",\"dob\":\"1970-03-08\",\"gender\":\"Female\"}]}";
-                String id3 = com.rites.ehc.JsonUtil.jsonValue(com.rites.ehc.JdbcRepository.createRequest(r3), "ehcId").orElse("");
-                com.rites.ehc.JdbcRepository.updateRequestStatus(id3, "SBU_APPROVED", "SBU Approved");
-                
-                String r4 = "{\"empNo\":\"10378\",\"empName\":\"ARUN SHARMA\",\"designation\":\"Executive Engineer\",\"division\":\"ELECTRICAL ENGINEERING\",\"mobile\":\"9700112233\",\"landline\":\"0124-2818333\",\"puHead\":\"R K Gupta\",\"stateName\":\"West Bengal\",\"cityName\":\"Kolkata\",\"hospitalName\":\"Apollo Gleneagles Hospital\",\"submissionDate\":\"2026-07-04\",\"dependents\":[{\"name\":\"SURESH SHARMA\",\"relation\":\"Father\",\"dob\":\"1950-06-18\",\"gender\":\"Male\"},{\"name\":\"KAMLA DEVI\",\"relation\":\"Mother\",\"dob\":\"1952-02-25\",\"gender\":\"Female\"}]}";
-                String id4 = com.rites.ehc.JsonUtil.jsonValue(com.rites.ehc.JdbcRepository.createRequest(r4), "ehcId").orElse("");
-                com.rites.ehc.JdbcRepository.updateRequestStatus(id4, "HR_REJECTED", "Missing documents");
-                
-                String r5 = "{\"empNo\":\"10445\",\"empName\":\"PREETI SINGH\",\"designation\":\"Senior Finance Officer\",\"division\":\"FINANCE & ACCOUNTS\",\"mobile\":\"9934556677\",\"landline\":\"0124-2818444\",\"puHead\":\"V P Jain\",\"stateName\":\"Haryana\",\"cityName\":\"Faridabad\",\"hospitalName\":\"Sarvodaya Hospital\",\"submissionDate\":\"2026-07-05\",\"dependents\":[{\"name\":\"PREETI SINGH\",\"relation\":\"Self\",\"dob\":\"1985-12-14\",\"gender\":\"Female\"}]}";
-                String id5 = com.rites.ehc.JsonUtil.jsonValue(com.rites.ehc.JdbcRepository.createRequest(r5), "ehcId").orElse("");
-                com.rites.ehc.JdbcRepository.updateRequestBill(id5, "{\"invoiceNumber\":\"INV-1001\",\"invoiceDate\":\"2026-07-06\",\"invoiceAmount\":4500,\"documentUrl\":\"mock_bill.pdf\"}");
-                
-                String r6 = "{\"empNo\":\"10124\",\"empName\":\"ANJANI UPADHYAY\",\"designation\":\"Manager (IT)\",\"division\":\"INFORMATION TECHNOLOGY\",\"mobile\":\"9876543210\",\"landline\":\"0124-2818000\",\"puHead\":\"S K Sharma\",\"stateName\":\"Haryana\",\"cityName\":\"Gurugram\",\"hospitalName\":\"Fortis Memorial Research Institute\",\"submissionDate\":\"2026-07-06\",\"dependents\":[{\"name\":\"SWETA SHARMA\",\"relation\":\"Spouse\",\"dob\":\"1976-08-28\",\"gender\":\"Female\"}]}";
-                String id6 = com.rites.ehc.JsonUtil.jsonValue(com.rites.ehc.JdbcRepository.createRequest(r6), "ehcId").orElse("");
-                com.rites.ehc.JdbcRepository.updateRequestBill(id6, "{\"invoiceNumber\":\"INV-1002\",\"invoiceDate\":\"2026-07-07\",\"invoiceAmount\":5500,\"documentUrl\":\"mock_bill2.pdf\"}");
-                com.rites.ehc.JdbcRepository.updateRequestFinanceAction(id6, "Bill Approved", "Looks good");
-                
-                String r7 = "{\"empNo\":\"10245\",\"empName\":\"RAHUL KUMAR\",\"designation\":\"Assistant Manager\",\"division\":\"CIVIL ENGINEERING\",\"mobile\":\"9988776655\",\"landline\":\"0124-2818111\",\"puHead\":\"M N Singh\",\"stateName\":\"Delhi\",\"cityName\":\"New Delhi\",\"hospitalName\":\"AIIMS Delhi\",\"submissionDate\":\"2026-07-07\",\"dependents\":[{\"name\":\"RAMESH KUMAR\",\"relation\":\"Father\",\"dob\":\"1953-04-10\",\"gender\":\"Male\"}]}";
-                String id7 = com.rites.ehc.JsonUtil.jsonValue(com.rites.ehc.JdbcRepository.createRequest(r7), "ehcId").orElse("");
-                com.rites.ehc.JdbcRepository.updateRequestBill(id7, "{\"invoiceNumber\":\"INV-1003\",\"invoiceDate\":\"2026-07-08\",\"invoiceAmount\":3200,\"documentUrl\":\"mock_bill3.pdf\"}");
-                com.rites.ehc.JdbcRepository.updateRequestFinanceAction(id7, "Bill Rejected", "Amount mismatch");
-
-                String r8 = "{\"empNo\":\"10312\",\"empName\":\"SUNITA VERMA\",\"designation\":\"Deputy General Manager\",\"division\":\"HUMAN RESOURCES\",\"mobile\":\"9811223344\",\"landline\":\"0124-2818222\",\"puHead\":\"Self\",\"stateName\":\"Maharashtra\",\"cityName\":\"Mumbai\",\"hospitalName\":\"Lilavati Hospital\",\"submissionDate\":\"2026-07-08\",\"dependents\":[{\"name\":\"VIKRAM VERMA\",\"relation\":\"Spouse\",\"dob\":\"1968-07-14\",\"gender\":\"Male\"}]}";
-                String id8 = com.rites.ehc.JsonUtil.jsonValue(com.rites.ehc.JdbcRepository.createRequest(r8), "ehcId").orElse("");
-                com.rites.ehc.JdbcRepository.updateRequestBill(id8, "{\"invoiceNumber\":\"INV-1004\",\"invoiceDate\":\"2026-07-09\",\"invoiceAmount\":5600,\"documentUrl\":\"mock_bill4.pdf\"}");
-                com.rites.ehc.JdbcRepository.updateRequestFinanceAction(id8, "Bill Approved", "Ok");
-                com.rites.ehc.JdbcRepository.updateRequestDisbursement(id8, "{\"paymentRef\":\"PAY-9876543\",\"paymentDate\":\"2026-07-10\",\"disbursedAmount\":5600}");
-
-                String r9 = "{\"empNo\":\"10378\",\"empName\":\"ARUN SHARMA\",\"designation\":\"Executive Engineer\",\"division\":\"ELECTRICAL ENGINEERING\",\"mobile\":\"9700112233\",\"landline\":\"0124-2818333\",\"puHead\":\"R K Gupta\",\"stateName\":\"West Bengal\",\"cityName\":\"Kolkata\",\"hospitalName\":\"AMRI Hospital Salt Lake\",\"submissionDate\":\"2026-07-09\",\"dependents\":[{\"name\":\"ARUN SHARMA\",\"relation\":\"Self\",\"dob\":\"1978-09-22\",\"gender\":\"Male\"}]}";
-                String id9 = com.rites.ehc.JsonUtil.jsonValue(com.rites.ehc.JdbcRepository.createRequest(r9), "ehcId").orElse("");
-                com.rites.ehc.JdbcRepository.updateRequestStatus(id9, "SBU_REJECTED", "Not eligible");
-
-                String r10 = "{\"empNo\":\"10445\",\"empName\":\"PREETI SINGH\",\"designation\":\"Senior Finance Officer\",\"division\":\"FINANCE & ACCOUNTS\",\"mobile\":\"9934556677\",\"landline\":\"0124-2818444\",\"puHead\":\"V P Jain\",\"stateName\":\"Uttar Pradesh\",\"cityName\":\"Noida\",\"hospitalName\":\"Fortis Hospital Noida\",\"submissionDate\":\"2026-07-10\",\"dependents\":[{\"name\":\"MOHIT SINGH\",\"relation\":\"Spouse\",\"dob\":\"1983-08-30\",\"gender\":\"Male\"}]}";
-                String id10 = com.rites.ehc.JsonUtil.jsonValue(com.rites.ehc.JdbcRepository.createRequest(r10), "ehcId").orElse("");
-                com.rites.ehc.JdbcRepository.updateRequestBill(id10, "{\"invoiceNumber\":\"INV-1005\",\"invoiceDate\":\"2026-07-11\",\"invoiceAmount\":4800,\"documentUrl\":\"mock_bill5.pdf\"}");
-                com.rites.ehc.JdbcRepository.updateRequestFinanceAction(id10, "Bill Approved", "Approved for disbursement");
-                com.rites.ehc.JdbcRepository.updateRequestDisbursement(id10, "{\"paymentRef\":\"PAY-1234567\",\"paymentDate\":\"2026-07-12\",\"disbursedAmount\":4800}");
+                insertMockRequest(conn, "EHC-100001", "10124", "ANJANI UPADHYAY", "Manager (IT)", "INFORMATION TECHNOLOGY", "9876543210", "0124-2818000", "S K Sharma", "Haryana", "Gurugram", "Medanta - The Medicity", "Pending SBU", "", null, "", null, "2026-07-01", new String[][] { {"ANJANI UPADHYAY", "Self", "1975-01-26", "Male"} });
+                insertMockRequest(conn, "EHC-100002", "10245", "RAHUL KUMAR", "Assistant Manager", "CIVIL ENGINEERING", "9988776655", "0124-2818111", "M N Singh", "Delhi", "New Delhi", "Indraprastha Apollo Hospital", "Approved by HR", "Approved by HR", null, "", null, "2026-07-02", new String[][] { {"RAHUL KUMAR", "Self", "1982-05-15", "Male"}, {"PRIYA KUMARI", "Spouse", "1985-09-12", "Female"} });
+                insertMockRequest(conn, "EHC-100003", "10312", "SUNITA VERMA", "Deputy General Manager", "HUMAN RESOURCES", "9811223344", "0124-2818222", "Self", "Maharashtra", "Mumbai", "Hinduja Hospital", "Approved by SBU", "SBU Approved", null, "", null, "2026-07-03", new String[][] { {"SUNITA VERMA", "Self", "1970-03-08", "Female"} });
+                insertMockRequest(conn, "EHC-100004", "10378", "ARUN SHARMA", "Executive Engineer", "ELECTRICAL ENGINEERING", "9700112233", "0124-2818333", "R K Gupta", "West Bengal", "Kolkata", "Apollo Gleneagles Hospital", "Rejected by HR", "Missing documents", null, "", null, "2026-07-04", new String[][] { {"SURESH SHARMA", "Father", "1950-06-18", "Male"}, {"KAMLA DEVI", "Mother", "1952-02-25", "Female"} });
+                insertMockRequest(conn, "EHC-100005", "10445", "PREETI SINGH", "Senior Finance Officer", "FINANCE & ACCOUNTS", "9934556677", "0124-2818444", "V P Jain", "Haryana", "Faridabad", "Sarvodaya Hospital", "Bill Uploaded", "", "{\"invoiceNumber\":\"INV-1001\",\"invoiceDate\":\"2026-07-06\",\"invoiceAmount\":4500,\"documentUrl\":\"mock_bill.pdf\"}", "", null, "2026-07-05", new String[][] { {"PREETI SINGH", "Self", "1985-12-14", "Female"} });
+                insertMockRequest(conn, "EHC-100006", "10124", "ANJANI UPADHYAY", "Manager (IT)", "INFORMATION TECHNOLOGY", "9876543210", "0124-2818000", "S K Sharma", "Haryana", "Gurugram", "Fortis Memorial Research Institute", "Bill Approved", "", "{\"invoiceNumber\":\"INV-1002\",\"invoiceDate\":\"2026-07-07\",\"invoiceAmount\":5500,\"documentUrl\":\"mock_bill2.pdf\"}", "Looks good", null, "2026-07-06", new String[][] { {"SWETA SHARMA", "Spouse", "1976-08-28", "Female"} });
+                insertMockRequest(conn, "EHC-100007", "10245", "RAHUL KUMAR", "Assistant Manager", "CIVIL ENGINEERING", "9988776655", "0124-2818111", "M N Singh", "Delhi", "New Delhi", "AIIMS Delhi", "Bill Rejected", "", "{\"invoiceNumber\":\"INV-1003\",\"invoiceDate\":\"2026-07-08\",\"invoiceAmount\":3200,\"documentUrl\":\"mock_bill3.pdf\"}", "Amount mismatch", null, "2026-07-07", new String[][] { {"RAMESH KUMAR", "Father", "1953-04-10", "Male"} });
+                insertMockRequest(conn, "EHC-100008", "10312", "SUNITA VERMA", "Deputy General Manager", "HUMAN RESOURCES", "9811223344", "0124-2818222", "Self", "Maharashtra", "Mumbai", "Lilavati Hospital", "Disbursed", "", "{\"invoiceNumber\":\"INV-1004\",\"invoiceDate\":\"2026-07-09\",\"invoiceAmount\":5600,\"documentUrl\":\"mock_bill4.pdf\"}", "Ok", "{\"paymentRef\":\"PAY-9876543\",\"paymentDate\":\"2026-07-10\",\"disbursedAmount\":5600}", "2026-07-08", new String[][] { {"VIKRAM VERMA", "Spouse", "1968-07-14", "Male"} });
+                insertMockRequest(conn, "EHC-100009", "10378", "ARUN SHARMA", "Executive Engineer", "ELECTRICAL ENGINEERING", "9700112233", "0124-2818333", "R K Gupta", "West Bengal", "Kolkata", "AMRI Hospital Salt Lake", "Rejected by SBU", "Not eligible", null, "", null, "2026-07-09", new String[][] { {"ARUN SHARMA", "Self", "1978-09-22", "Male"} });
+                insertMockRequest(conn, "EHC-100010", "10445", "PREETI SINGH", "Senior Finance Officer", "FINANCE & ACCOUNTS", "9934556677", "0124-2818444", "V P Jain", "Uttar Pradesh", "Noida", "Fortis Hospital Noida", "Disbursed", "", "{\"invoiceNumber\":\"INV-1005\",\"invoiceDate\":\"2026-07-11\",\"invoiceAmount\":4800,\"documentUrl\":\"mock_bill5.pdf\"}", "Approved for disbursement", "{\"paymentRef\":\"PAY-1234567\",\"paymentDate\":\"2026-07-12\",\"disbursedAmount\":4800}", "2026-07-10", new String[][] { {"MOHIT SINGH", "Spouse", "1983-08-30", "Male"} });
             }
+
+            if (!hasRows(conn, "ehc_status_history")) {
+                seedStatusHistory(conn);
+            }
+            if (!hasRows(conn, "ehc_documents")) {
+                seedDocuments(conn);
+            }
+            if (!hasRows(conn, "ehc_payment_recommendations")) {
+                seedPaymentRecommendations(conn);
+            }
+            if (!hasRows(conn, "ehc_payments")) {
+                seedPayments(conn);
+            }
+
         } catch (Exception e) {
             throw new RuntimeException("Failed to seed base data", e);
         }
@@ -228,9 +216,173 @@ public final class SeedData {
             ps.executeUpdate();
         }
     }
+    private static void insertMockRequest(Connection conn, String ehcId, String empNo, String empName, String designation, String division, String mobile, String landline, String puHead, String state, String city, String hospitalName, String status, String remarks, String billDetails, String financeRemarks, String disbursementDetails, String submissionDate, String[][] dependents) throws Exception {
+        String sql = "INSERT INTO ehc_requests(ehc_id, emp_no, emp_name, designation, division, mobile, landline, pu_head, state_name, city_name, hospital_name, status, remarks, bill_details, finance_remarks, disbursement_details, submission_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        long requestId;
+        try (PreparedStatement ps = conn.prepareStatement(sql, java.sql.Statement.RETURN_GENERATED_KEYS)) {
+            ps.setString(1, ehcId);
+            ps.setString(2, empNo);
+            ps.setString(3, empName);
+            ps.setString(4, designation);
+            ps.setString(5, division);
+            ps.setString(6, mobile);
+            ps.setString(7, landline);
+            ps.setString(8, puHead);
+            ps.setString(9, state);
+            ps.setString(10, city);
+            ps.setString(11, hospitalName);
+            ps.setString(12, status);
+            ps.setString(13, remarks);
+            ps.setString(14, billDetails);
+            ps.setString(15, financeRemarks);
+            ps.setString(16, disbursementDetails);
+            ps.setDate(17, Date.valueOf(submissionDate));
+            ps.executeUpdate();
+            try (ResultSet rs = ps.getGeneratedKeys()) {
+                if (rs.next()) {
+                    requestId = rs.getLong(1);
+                } else {
+                    throw new SQLException("Creating request failed, no ID obtained.");
+                }
+            }
+        }
+        if (dependents != null) {
+            for (String[] dep : dependents) {
+                try (PreparedStatement ps = conn.prepareStatement("INSERT INTO ehc_request_dependents(request_id, dependent_name, relation, dob, gender) VALUES (?, ?, ?, ?, ?)")) {
+                    ps.setLong(1, requestId);
+                    ps.setString(2, dep[0]);
+                    ps.setString(3, dep[1]);
+                    ps.setDate(4, Date.valueOf(dep[2]));
+                    ps.setString(5, dep[3]);
+                    ps.executeUpdate();
+                }
+            }
+        }
+    }
+
+    // ---- Seed status history for requests that have progressed past Pending SBU ----
+    private static void seedStatusHistory(Connection conn) throws Exception {
+        // Map ehc_id -> list of {old_status, new_status, remarks}
+        String[][] transitions = {
+            {"EHC-100002", null,              "Pending SBU",    ""},
+            {"EHC-100002", "Pending SBU",    "Approved by HR",  "Initial review completed"},
+            {"EHC-100003", null,              "Pending SBU",    ""},
+            {"EHC-100003", "Pending SBU",    "Approved by HR",  "Eligible employee"},
+            {"EHC-100003", "Approved by HR", "Approved by SBU", "SBU concurrence given"},
+            {"EHC-100004", null,              "Pending SBU",    ""},
+            {"EHC-100004", "Pending SBU",    "Rejected by HR",  "Missing documents"},
+            {"EHC-100005", null,              "Pending SBU",    ""},
+            {"EHC-100005", "Pending SBU",    "Approved by HR",  "Documents verified"},
+            {"EHC-100005", "Approved by HR", "Approved by SBU", "SBU approved"},
+            {"EHC-100005", "Approved by SBU","Bill Uploaded",   "Bill submitted by employee"},
+            {"EHC-100006", null,              "Pending SBU",    ""},
+            {"EHC-100006", "Pending SBU",    "Approved by HR",  "Eligible"},
+            {"EHC-100006", "Approved by HR", "Approved by SBU", "Approved"},
+            {"EHC-100006", "Approved by SBU","Bill Uploaded",   "Bill submitted"},
+            {"EHC-100006", "Bill Uploaded",  "Bill Approved",   "Looks good"},
+            {"EHC-100007", null,              "Pending SBU",    ""},
+            {"EHC-100007", "Pending SBU",    "Approved by HR",  "Eligible"},
+            {"EHC-100007", "Approved by HR", "Approved by SBU", "Approved"},
+            {"EHC-100007", "Approved by SBU","Bill Uploaded",   "Bill submitted"},
+            {"EHC-100007", "Bill Uploaded",  "Bill Rejected",   "Amount mismatch"},
+            {"EHC-100008", null,              "Pending SBU",    ""},
+            {"EHC-100008", "Pending SBU",    "Approved by HR",  "Eligible"},
+            {"EHC-100008", "Approved by HR", "Approved by SBU", "Approved"},
+            {"EHC-100008", "Approved by SBU","Bill Uploaded",   "Bill submitted"},
+            {"EHC-100008", "Bill Uploaded",  "Bill Approved",   "Ok"},
+            {"EHC-100008", "Bill Approved",  "Disbursed",       "Payment processed"},
+            {"EHC-100009", null,              "Pending SBU",    ""},
+            {"EHC-100009", "Pending SBU",    "Rejected by SBU", "Not eligible"},
+            {"EHC-100010", null,              "Pending SBU",    ""},
+            {"EHC-100010", "Pending SBU",    "Approved by HR",  "Eligible"},
+            {"EHC-100010", "Approved by HR", "Approved by SBU", "Approved"},
+            {"EHC-100010", "Approved by SBU","Bill Uploaded",   "Bill submitted"},
+            {"EHC-100010", "Bill Uploaded",  "Bill Approved",   "Approved for disbursement"},
+            {"EHC-100010", "Bill Approved",  "Disbursed",       "Payment processed"}
+        };
+        String insSQL = "INSERT INTO ehc_status_history(request_id, old_status, new_status, remarks) " +
+                        "SELECT r.request_id, ?, ?, ? FROM ehc_requests r WHERE r.ehc_id = ?";
+        try (PreparedStatement ps = conn.prepareStatement(insSQL)) {
+            for (String[] t : transitions) {
+                ps.setString(1, t[1]);  // old_status (may be null)
+                ps.setString(2, t[2]);  // new_status
+                ps.setString(3, t[3]);  // remarks
+                ps.setString(4, t[0]);  // ehc_id
+                ps.executeUpdate();
+            }
+        }
+    }
+
+    private static void seedDocuments(Connection conn) throws Exception {
+        // Only requests with Bill Uploaded/Approved/Rejected/Disbursed have documents
+        String[][] docs = {
+            {"EHC-100005", "MEDICAL_BILL", "INV-1001_bill.pdf",  "/uploads/ehc/INV-1001_bill.pdf",  "application/pdf", "0", "1"},
+            {"EHC-100006", "MEDICAL_BILL", "INV-1002_bill.pdf",  "/uploads/ehc/INV-1002_bill.pdf",  "application/pdf", "1", "1"},
+            {"EHC-100007", "MEDICAL_BILL", "INV-1003_bill.pdf",  "/uploads/ehc/INV-1003_bill.pdf",  "application/pdf", "1", "0"},
+            {"EHC-100008", "MEDICAL_BILL", "INV-1004_bill.pdf",  "/uploads/ehc/INV-1004_bill.pdf",  "application/pdf", "1", "1"},
+            {"EHC-100010", "MEDICAL_BILL", "INV-1005_bill.pdf",  "/uploads/ehc/INV-1005_bill.pdf",  "application/pdf", "1", "1"}
+        };
+        // docs columns: ehc_id, doc_type, file_name, file_path, content_type, is_verified (0/1), emp_upload
+        String insSQL = "INSERT INTO ehc_documents(request_id, document_type, file_name, file_path, content_type, uploaded_by, is_verified, verified_by, verification_comments) " +
+                        "SELECT r.request_id, ?, ?, ?, ?, r.emp_no, ?, 'FINANCE', 'Verified as part of seed data' FROM ehc_requests r WHERE r.ehc_id = ?";
+        try (PreparedStatement ps = conn.prepareStatement(insSQL)) {
+            for (String[] d : docs) {
+                ps.setString(1, d[1]);  // document_type
+                ps.setString(2, d[2]);  // file_name
+                ps.setString(3, d[3]);  // file_path
+                ps.setString(4, d[4]);  // content_type
+                ps.setObject(5, Integer.parseInt(d[5]));  // is_verified
+                ps.setString(6, d[0]);  // ehc_id
+                ps.executeUpdate();
+            }
+        }
+    }
+
+    private static void seedPaymentRecommendations(Connection conn) throws Exception {
+        // Requests that reached Bill Approved or Disbursed
+        String[][] recos = {
+            {"EHC-100006", "FINANCE", "5500", "5500", "0",    "NEFT",  "Approved after verification"},
+            {"EHC-100008", "FINANCE", "5600", "5600", "0",    "NEFT",  "Full amount recommended"},
+            {"EHC-100010", "FINANCE", "4800", "4800", "0",    "RTGS",  "Approved for disbursement"}
+        };
+        String insSQL = "INSERT INTO ehc_payment_recommendations(request_id, recommended_by, total_bill_amount, company_payable_amount, employee_payable_amount, payment_mode, comments) " +
+                        "SELECT r.request_id, ?, ?, ?, ?, ?, ? FROM ehc_requests r WHERE r.ehc_id = ?";
+        try (PreparedStatement ps = conn.prepareStatement(insSQL)) {
+            for (String[] rec : recos) {
+                ps.setString(1, rec[1]);
+                ps.setBigDecimal(2, new java.math.BigDecimal(rec[2]));
+                ps.setBigDecimal(3, new java.math.BigDecimal(rec[3]));
+                ps.setBigDecimal(4, new java.math.BigDecimal(rec[4]));
+                ps.setString(5, rec[5]);
+                ps.setString(6, rec[6]);
+                ps.setString(7, rec[0]);
+                ps.executeUpdate();
+            }
+        }
+    }
+
+    private static void seedPayments(Connection conn) throws Exception {
+        // Disbursed requests: EHC-100008 and EHC-100010
+        String[][] payments = {
+            {"EHC-100008", "PAY-9876543", "2026-07-10", "5600", "SUCCESS", "FINANCE", "Payment disbursed"},
+            {"EHC-100010", "PAY-1234567", "2026-07-12", "4800", "SUCCESS", "FINANCE", "Payment disbursed"}
+        };
+        String insSQL = "INSERT INTO ehc_payments(request_id, recommendation_id, processed_by, payment_status, paid_amount, payment_reference_no, payment_date, finance_comments) " +
+                        "SELECT r.request_id, pr.recommendation_id, ?, ?, ?, ?, ?, ? " +
+                        "FROM ehc_requests r " +
+                        "JOIN ehc_payment_recommendations pr ON pr.request_id = r.request_id " +
+                        "WHERE r.ehc_id = ?";
+        try (PreparedStatement ps = conn.prepareStatement(insSQL)) {
+            for (String[] pay : payments) {
+                ps.setString(1, pay[5]);  // processed_by
+                ps.setString(2, pay[4]);  // payment_status
+                ps.setBigDecimal(3, new java.math.BigDecimal(pay[3]));  // paid_amount
+                ps.setString(4, pay[1]);  // payment_reference_no
+                ps.setDate(5, Date.valueOf(pay[2]));  // payment_date
+                ps.setString(6, pay[6]);  // finance_comments
+                ps.setString(7, pay[0]);  // ehc_id
+                ps.executeUpdate();
+            }
+        }
+    }
 }
-
-
-
-
-

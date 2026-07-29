@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    container_name: ehc-sqlserver
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=YourStrong@Passw0rd
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql-data:/var/opt/mssql/data
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ehc-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - EHC_DB_URL=jdbc:sqlserver://sqlserver:1433;databaseName=ehc_rites;encrypt=true;trustServerCertificate=true
+      - EHC_DB_USER=sa
+      - EHC_DB_PASSWORD=YourStrong@Passw0rd
+      - PORT=8080
+    depends_on:
+      - sqlserver
+
+volumes:
+  mssql-data:

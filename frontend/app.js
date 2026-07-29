@@ -1,5 +1,15 @@
 // RITES EHC Portal UI Controller Logic
 
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     // Current state
     let activeEmployee = null;
@@ -7,6 +17,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let hrRequests = [];       // Cache of requests in HR view
     let hrPage = 1;
     let hrPageSize = 10;
+
     
     // DOM Elements
     const views = document.querySelectorAll(".view-section");
@@ -30,6 +41,68 @@ document.addEventListener("DOMContentLoaded", () => {
         setupSettingsEvents();
         setupNewViewsEvents();
         setupScrollTop();
+        setupRoleSwitcher();
+        setupPresentationLogin();
+    }
+    
+    function setupPresentationLogin() {
+        const loginForm = document.getElementById("presentation-login-form");
+        const overlay = document.getElementById("presentation-login-overlay");
+        if (loginForm && overlay) {
+            loginForm.addEventListener("submit", (e) => {
+                e.preventDefault();
+                const username = document.getElementById("login-username").value.toLowerCase();
+                const roleSwitcher = document.getElementById("role-switcher");
+                
+                // Smart auto-role switching for presentation based on typed username
+                if (username.includes("hr")) roleSwitcher.value = "HR";
+                else if (username.includes("sbu")) roleSwitcher.value = "SBU";
+                else if (username.includes("fin")) roleSwitcher.value = "FINANCE";
+                else roleSwitcher.value = "EMPLOYEE";
+                
+                // Trigger the role switcher logic so the UI updates and token is fetched
+                roleSwitcher.dispatchEvent(new Event("change"));
+                
+                // Update profile name
+                document.getElementById("header-user-name").textContent = username.toUpperCase();
+                
+                // Fade out overlay
+                overlay.style.opacity = "0";
+                setTimeout(() => {
+                    overlay.style.display = "none";
+                }, 500);
+            });
+        }
+    }
+
+    // Role Switcher implementation
+    function setupRoleSwitcher() {
+        const roleSwitcher = document.getElementById("role-switcher");
+        const roleLoginStatus = document.getElementById("role-login-status");
+        if (roleSwitcher) {
+            // Initial login based on default value
+            window.api.login(roleSwitcher.value).then(res => {
+                if (res.success && window.api.getConfig().mode === 'live') {
+                    roleLoginStatus.style.display = "inline";
+                }
+            });
+
+            roleSwitcher.addEventListener("change", async (e) => {
+                const role = e.target.value;
+                const res = await window.api.login(role);
+                if (res.success && window.api.getConfig().mode === 'live') {
+                    roleLoginStatus.style.display = "inline";
+                } else {
+                    roleLoginStatus.style.display = "none";
+                }
+                
+                // Refresh current view based on new role
+                const activeView = document.querySelector(".view-section.active");
+                if (activeView) {
+                    switchView(activeView.id);
+                }
+            });
+        }
     }
 
     // Badge showing Demo vs Live Mode
@@ -323,17 +396,25 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        // Always read live form values so manual entries for new employees are captured
+        const liveEmpName = document.getElementById("req-emp-name").value.trim();
+        const liveDesignation = document.getElementById("req-designation").value.trim();
+        const liveDivision = document.getElementById("req-division").value.trim();
+
         const selectedDependentsList = [];
         checkedBoxes.forEach(box => {
-            const index = box.dataset.index;
-            selectedDependentsList.push(activeEmployee.dependents[index]);
+            const index = parseInt(box.dataset.index, 10);
+            const dep = Object.assign({}, activeEmployee.dependents[index]);
+            // If the Self dependent has no name, use the employee name from the form
+            if (!dep.name && dep.relation === 'Self') dep.name = liveEmpName || 'Self';
+            selectedDependentsList.push(dep);
         });
 
         const request = {
             empNo: activeEmployee.empNo,
-            empName: activeEmployee.name,
-            designation: activeEmployee.designation,
-            division: activeEmployee.division,
+            empName: liveEmpName || activeEmployee.name,
+            designation: liveDesignation || activeEmployee.designation,
+            division: liveDivision || activeEmployee.division,
             mobile: document.getElementById("req-mobile").value,
             landline: document.getElementById("req-landline").value,
             puHead: document.getElementById("req-pu-head").value,
@@ -355,35 +436,49 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 4. Employee Profile & Dependents Table
     async function loadEmployeeData(empNo) {
-        activeEmployee = await window.api.getEmployee(empNo);
-        if (!activeEmployee) return;
+        const fetched = await window.api.getEmployee(empNo);
+        if (fetched && fetched.empNo) {
+            activeEmployee = fetched;
+        } else {
+            // Employee not in DB — allow manual entry; backend will auto-register on submit
+            activeEmployee = {
+                empNo: empNo,
+                name: '',
+                designation: '',
+                division: '',
+                mobile: '',
+                landline: '',
+                dependents: [{ name: '', relation: 'Self', dob: '1985-01-01', gender: '' }]
+            };
+        }
 
         // Render in Request Form fields
-        document.getElementById("req-emp-no").value = activeEmployee.empNo;
-        document.getElementById("req-emp-name").value = activeEmployee.name;
-        document.getElementById("req-designation").value = activeEmployee.designation;
-        document.getElementById("req-division").value = activeEmployee.division;
-        document.getElementById("req-mobile").value = activeEmployee.mobile;
-        document.getElementById("req-landline").value = activeEmployee.landline;
+        document.getElementById("req-emp-no").value = activeEmployee.empNo || '';
+        document.getElementById("req-emp-name").value = activeEmployee.name || '';
+        document.getElementById("req-designation").value = activeEmployee.designation || '';
+        document.getElementById("req-division").value = activeEmployee.division || '';
+        document.getElementById("req-mobile").value = activeEmployee.mobile || '';
+        document.getElementById("req-landline").value = activeEmployee.landline || '';
 
         // Populate dependents table
         const tbody = document.getElementById("dependents-table-body");
         tbody.innerHTML = "";
 
-        activeEmployee.dependents.forEach((dep, index) => {
+        const dependents = activeEmployee.dependents || [];
+        dependents.forEach((dep, index) => {
             const tr = document.createElement("tr");
             
             // Calculate age
             const birthYear = new Date(dep.dob).getFullYear();
-            const currentYear = 2026; // Current simulation year
+            const currentYear = 2026;
             const age = currentYear - birthYear;
             
-            // Determine eligibility (In this mock system: Self and Spouse are eligible, else depends on age)
+            // Determine eligibility
             const isEligible = (dep.relation === 'Self' || dep.relation === 'Spouse' || age < 18 || age > 60) ? 'Yes' : 'No';
 
             tr.innerHTML = `
                 <td><input type="checkbox" class="dependent-select" data-index="${index}"></td>
-                <td>${dep.name}</td>
+                <td>${dep.name || '(New Employee)'}</td>
                 <td>${formatDate(dep.dob)}</td>
                 <td>${age}</td>
                 <td style="font-weight: 500; color: ${isEligible === 'Yes' ? 'var(--rites-green)' : 'var(--error-color)'}">${isEligible}</td>
@@ -905,15 +1000,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 const billNumber = document.getElementById("bill-number").value;
                 const billDate = document.getElementById("bill-date").value;
                 const billAmount = document.getElementById("bill-amount").value;
+                const fileInput = document.getElementById("bill-file");
+                const file = fileInput.files.length > 0 ? fileInput.files[0] : null;
                 
                 const billDetails = {
                     billNumber,
                     billDate,
                     billAmount,
-                    fileName: "invoice_" + ehcId + ".pdf"
+                    fileName: file ? file.name : ("invoice_" + ehcId + ".pdf")
                 };
 
-                const res = await window.api.uploadRequestBill(ehcId, billDetails);
+                const res = await window.api.uploadRequestBill(ehcId, billDetails, file);
                 if (res.success) {
                     alert("Clinic bill details uploaded successfully!");
                     billUploadForm.reset();

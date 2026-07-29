@@ -84,6 +84,8 @@ public final class SqlServerBootstrap {
             st.executeUpdate("IF COL_LENGTH('ehc_requests', 'bill_details') IS NULL ALTER TABLE ehc_requests ADD bill_details NVARCHAR(MAX) NULL");
             st.executeUpdate("IF COL_LENGTH('ehc_requests', 'finance_remarks') IS NULL ALTER TABLE ehc_requests ADD finance_remarks VARCHAR(1000) NULL");
             st.executeUpdate("IF COL_LENGTH('ehc_requests', 'disbursement_details') IS NULL ALTER TABLE ehc_requests ADD disbursement_details NVARCHAR(MAX) NULL");
+            st.executeUpdate("ALTER TABLE ehc_requests ALTER COLUMN mobile VARCHAR(20) NOT NULL");
+
             st.executeUpdate("IF OBJECT_ID('ehc_request_dependents', 'U') IS NULL CREATE TABLE ehc_request_dependents (" +
                     "dependent_id BIGINT IDENTITY(1,1) PRIMARY KEY," +
                     "request_id BIGINT NOT NULL FOREIGN KEY REFERENCES ehc_requests(request_id)," +

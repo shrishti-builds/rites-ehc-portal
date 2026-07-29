@@ -1,23 +1,27 @@
-# Java
-target/
-*.class
-*.jar
-*.war
+# Java build output
+backend/target/
+backend/*.jar
 
-# IDE
-.vscode/
+# Maven downloaded during build
+backend/apache-maven-*/
+backend/maven.zip
+
+# IDE files
 .idea/
 *.iml
+.vscode/
+*.class
 
-# OS
-.DS_Store
+# Uploaded medical bills (runtime data)
+backend/uploads/
+
+# OS files
 Thumbs.db
+.DS_Store
+desktop.ini
 
 # Logs
 *.log
 
-# Env
+# Environment secrets (never commit)
 .env
-
-# Data
-data/

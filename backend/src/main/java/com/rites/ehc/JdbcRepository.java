@@ -130,6 +130,69 @@ public final class JdbcRepository {
         return rows;
     }
 
+    /**
+     * Returns one page of requests, optionally filtered by a search keyword.
+     * Search matches ehc_id, emp_name, hospital_name, or status (case-insensitive).
+     */
+    public static List<String> listRequestsPaged(int page, int size, String search) {
+        List<String> rows = new ArrayList<>();
+        boolean hasSearch = search != null && !search.trim().isEmpty();
+        String where = hasSearch
+                ? "WHERE LOWER(ehc_id) LIKE ? OR LOWER(emp_name) LIKE ? OR LOWER(hospital_name) LIKE ? OR LOWER(status) LIKE ?"
+                : "";
+        String sql = "SELECT * FROM ehc_requests " + where
+                + " ORDER BY created_at DESC, request_id DESC"
+                + " OFFSET ? ROWS FETCH NEXT ? ROWS ONLY";
+        try (Connection conn = Db.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            int paramIdx = 1;
+            if (hasSearch) {
+                String like = "%" + search.trim().toLowerCase() + "%";
+                ps.setString(paramIdx++, like);
+                ps.setString(paramIdx++, like);
+                ps.setString(paramIdx++, like);
+                ps.setString(paramIdx++, like);
+            }
+            ps.setInt(paramIdx++, page * size);   // OFFSET
+            ps.setInt(paramIdx,   size);           // FETCH NEXT
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    rows.add(toRequestJson(conn, rs));
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return rows;
+    }
+
+    /**
+     * Counts total requests matching the optional search keyword.
+     */
+    public static long countRequests(String search) {
+        boolean hasSearch = search != null && !search.trim().isEmpty();
+        String where = hasSearch
+                ? "WHERE LOWER(ehc_id) LIKE ? OR LOWER(emp_name) LIKE ? OR LOWER(hospital_name) LIKE ? OR LOWER(status) LIKE ?"
+                : "";
+        String sql = "SELECT COUNT(*) FROM ehc_requests " + where;
+        try (Connection conn = Db.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            if (hasSearch) {
+                String like = "%" + search.trim().toLowerCase() + "%";
+                ps.setString(1, like);
+                ps.setString(2, like);
+                ps.setString(3, like);
+                ps.setString(4, like);
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                rs.next();
+                return rs.getLong(1);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public static String findRequest(String ehcId) {
         String sql = "SELECT * FROM ehc_requests WHERE ehc_id = ?";
         try (Connection conn = Db.getConnection();
@@ -161,12 +224,49 @@ public final class JdbcRepository {
     public static String createRequest(String jsonBody) {
         try (Connection conn = Db.getConnection()) {
             conn.setAutoCommit(false);
+
+            // --- Auto-register employee if not present ---
+            String empNo = JsonUtil.jsonValue(jsonBody, "empNo").orElse("");
+            String empName = JsonUtil.jsonValue(jsonBody, "empName").orElse("");
+            boolean empExists = false;
+            try (PreparedStatement ps = conn.prepareStatement("SELECT 1 FROM ehc_employees WHERE emp_no = ?")) {
+                ps.setString(1, empNo);
+                try (ResultSet rs = ps.executeQuery()) {
+                    empExists = rs.next();
+                }
+            }
+            if (!empExists && !empNo.isEmpty()) {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "INSERT INTO ehc_employees(emp_no, emp_name, designation, division, mobile, landline, dob, gender) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")) {
+                    ps.setString(1, empNo);
+                    ps.setString(2, empName);
+                    ps.setString(3, JsonUtil.jsonValue(jsonBody, "designation").orElse(null));
+                    ps.setString(4, JsonUtil.jsonValue(jsonBody, "division").orElse(null));
+                    ps.setString(5, JsonUtil.jsonValue(jsonBody, "mobile").orElse(null));
+                    ps.setString(6, JsonUtil.jsonValue(jsonBody, "landline").orElse(null));
+                    ps.setDate(7, Date.valueOf("1985-01-01")); // default DOB
+                    ps.setString(8, null);
+                    ps.executeUpdate();
+                }
+                // Insert Self dependent for auto-registered employee
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "INSERT INTO ehc_employee_dependents(emp_no, dependent_name, relation, dob, gender) VALUES (?, ?, ?, ?, ?)")) {
+                    ps.setString(1, empNo);
+                    ps.setString(2, empName.isEmpty() ? "Self" : empName);
+                    ps.setString(3, "Self");
+                    ps.setDate(4, Date.valueOf("1985-01-01"));
+                    ps.setString(5, null);
+                    ps.executeUpdate();
+                }
+            }
+
+            // --- Insert the request ---
             String ehcId = "EHC-" + String.valueOf(System.currentTimeMillis()).substring(7);
             String insert = "INSERT INTO ehc_requests(ehc_id, emp_no, emp_name, designation, division, mobile, landline, pu_head, state_name, city_name, hospital_name, status, remarks, submission_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             try (PreparedStatement ps = conn.prepareStatement(insert)) {
                 ps.setString(1, ehcId);
-                ps.setString(2, JsonUtil.jsonValue(jsonBody, "empNo").orElse(""));
-                ps.setString(3, JsonUtil.jsonValue(jsonBody, "empName").orElse(""));
+                ps.setString(2, empNo);
+                ps.setString(3, empName);
                 ps.setString(4, JsonUtil.jsonValue(jsonBody, "designation").orElse(null));
                 ps.setString(5, JsonUtil.jsonValue(jsonBody, "division").orElse(null));
                 ps.setString(6, JsonUtil.jsonValue(jsonBody, "mobile").orElse(""));
@@ -180,15 +280,18 @@ public final class JdbcRepository {
                 ps.setDate(14, Date.valueOf(java.time.LocalDate.now()));
                 ps.executeUpdate();
             }
-            String selectIdSql = "SELECT request_id FROM ehc_requests WHERE ehc_id = ?";
+
+            // --- Fetch generated request_id ---
             long requestId;
-            try (PreparedStatement ps = conn.prepareStatement(selectIdSql)) {
+            try (PreparedStatement ps = conn.prepareStatement("SELECT request_id FROM ehc_requests WHERE ehc_id = ?")) {
                 ps.setString(1, ehcId);
                 try (ResultSet rs = ps.executeQuery()) {
                     rs.next();
                     requestId = rs.getLong(1);
                 }
             }
+
+            // --- Insert dependents ---
             String depsJson = jsonArrayValue(jsonBody, "dependents").orElse("[]");
             for (String depJson : splitObjects(depsJson)) {
                 try (PreparedStatement ps = conn.prepareStatement("INSERT INTO ehc_request_dependents(request_id, dependent_name, relation, dob, gender) VALUES (?, ?, ?, ?, ?)")) {
@@ -200,6 +303,17 @@ public final class JdbcRepository {
                     ps.executeUpdate();
                 }
             }
+
+            // --- Record initial status history ---
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "INSERT INTO ehc_status_history(request_id, old_status, new_status, remarks) VALUES (?, ?, ?, ?)")) {
+                ps.setLong(1, requestId);
+                ps.setNull(2, java.sql.Types.VARCHAR);
+                ps.setString(3, "Pending SBU");
+                ps.setString(4, "Request submitted");
+                ps.executeUpdate();
+            }
+
             conn.commit();
             return findRequest(ehcId);
         } catch (Exception e) {
@@ -208,13 +322,39 @@ public final class JdbcRepository {
     }
 
     public static boolean updateRequestStatus(String ehcId, String status, String remarks) {
-        String sql = "UPDATE ehc_requests SET status = ?, remarks = ? WHERE ehc_id = ?";
-        try (Connection conn = Db.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, status);
-            ps.setString(2, remarks);
-            ps.setString(3, ehcId);
-            return ps.executeUpdate() > 0;
+        try (Connection conn = Db.getConnection()) {
+            conn.setAutoCommit(false);
+            // Fetch old status
+            String oldStatus = null;
+            Long requestId = null;
+            try (PreparedStatement ps = conn.prepareStatement("SELECT request_id, status FROM ehc_requests WHERE ehc_id = ?")) {
+                ps.setString(1, ehcId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        requestId = rs.getLong("request_id");
+                        oldStatus = rs.getString("status");
+                    }
+                }
+            }
+            if (requestId == null) { conn.rollback(); return false; }
+            // Update request
+            try (PreparedStatement ps = conn.prepareStatement("UPDATE ehc_requests SET status = ?, remarks = ? WHERE ehc_id = ?")) {
+                ps.setString(1, status);
+                ps.setString(2, remarks);
+                ps.setString(3, ehcId);
+                ps.executeUpdate();
+            }
+            // Write status history
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "INSERT INTO ehc_status_history(request_id, old_status, new_status, remarks) VALUES (?, ?, ?, ?)")) {
+                ps.setLong(1, requestId);
+                ps.setString(2, oldStatus);
+                ps.setString(3, status);
+                ps.setString(4, remarks);
+                ps.executeUpdate();
+            }
+            conn.commit();
+            return true;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -257,37 +397,199 @@ public final class JdbcRepository {
     }
 
     public static boolean updateRequestBill(String ehcId, String billDetails) {
-        String sql = "UPDATE ehc_requests SET status = 'Bill Uploaded', bill_details = ? WHERE ehc_id = ?";
-        try (Connection conn = Db.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, billDetails);
-            ps.setString(2, ehcId);
-            return ps.executeUpdate() > 0;
+        try (Connection conn = Db.getConnection()) {
+            conn.setAutoCommit(false);
+            String oldStatus = null;
+            Long requestId = null;
+            try (PreparedStatement ps = conn.prepareStatement("SELECT request_id, status FROM ehc_requests WHERE ehc_id = ?")) {
+                ps.setString(1, ehcId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        requestId = rs.getLong("request_id");
+                        oldStatus = rs.getString("status");
+                    }
+                }
+            }
+            if (requestId == null) { conn.rollback(); return false; }
+            // Update request
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "UPDATE ehc_requests SET status = 'Bill Uploaded', bill_details = ? WHERE ehc_id = ?")) {
+                ps.setString(1, billDetails);
+                ps.setString(2, ehcId);
+                ps.executeUpdate();
+            }
+            // Insert document record — parse filename from JSON if available
+            String fileName = "bill_upload";
+            String contentType = "application/octet-stream";
+            try {
+                Optional<String> fn = JsonUtil.jsonValue(billDetails, "fileName");
+                if (fn.isPresent()) fileName = fn.get();
+                Optional<String> ct = JsonUtil.jsonValue(billDetails, "contentType");
+                if (ct.isPresent()) contentType = ct.get();
+            } catch (Exception ignored) {}
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "INSERT INTO ehc_documents(request_id, document_type, file_name, file_path, content_type, uploaded_by) VALUES (?, ?, ?, ?, ?, ?)")) {
+                ps.setLong(1, requestId);
+                ps.setString(2, "Bill");
+                ps.setString(3, fileName);
+                ps.setString(4, "uploads/" + ehcId + "/" + fileName);
+                ps.setString(5, contentType);
+                ps.setString(6, "hospital");
+                ps.executeUpdate();
+            }
+            // Status history
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "INSERT INTO ehc_status_history(request_id, old_status, new_status, remarks) VALUES (?, ?, ?, ?)")) {
+                ps.setLong(1, requestId);
+                ps.setString(2, oldStatus);
+                ps.setString(3, "Bill Uploaded");
+                ps.setString(4, "Bill submitted by hospital");
+                ps.executeUpdate();
+            }
+            conn.commit();
+            return true;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
     public static boolean updateRequestFinanceAction(String ehcId, String status, String financeRemarks) {
-        String sql = "UPDATE ehc_requests SET status = ?, finance_remarks = ? WHERE ehc_id = ?";
-        try (Connection conn = Db.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, status);
-            ps.setString(2, financeRemarks);
-            ps.setString(3, ehcId);
-            return ps.executeUpdate() > 0;
+        try (Connection conn = Db.getConnection()) {
+            conn.setAutoCommit(false);
+            String oldStatus = null;
+            Long requestId = null;
+            try (PreparedStatement ps = conn.prepareStatement("SELECT request_id, status FROM ehc_requests WHERE ehc_id = ?")) {
+                ps.setString(1, ehcId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        requestId = rs.getLong("request_id");
+                        oldStatus = rs.getString("status");
+                    }
+                }
+            }
+            if (requestId == null) { conn.rollback(); return false; }
+            // Update request
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "UPDATE ehc_requests SET status = ?, finance_remarks = ? WHERE ehc_id = ?")) {
+                ps.setString(1, status);
+                ps.setString(2, financeRemarks);
+                ps.setString(3, ehcId);
+                ps.executeUpdate();
+            }
+            // On approval, insert payment recommendation
+            if ("Bill Approved".equalsIgnoreCase(status)) {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "INSERT INTO ehc_payment_recommendations(request_id, recommended_by, total_bill_amount, company_payable_amount, employee_payable_amount, payment_mode, comments) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
+                    ps.setLong(1, requestId);
+                    ps.setString(2, "finance");
+                    ps.setBigDecimal(3, java.math.BigDecimal.ZERO);
+                    ps.setBigDecimal(4, java.math.BigDecimal.ZERO);
+                    ps.setBigDecimal(5, java.math.BigDecimal.ZERO);
+                    ps.setString(6, "NEFT");
+                    ps.setString(7, financeRemarks);
+                    ps.executeUpdate();
+                }
+            }
+            // Status history
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "INSERT INTO ehc_status_history(request_id, old_status, new_status, remarks) VALUES (?, ?, ?, ?)")) {
+                ps.setLong(1, requestId);
+                ps.setString(2, oldStatus);
+                ps.setString(3, status);
+                ps.setString(4, financeRemarks);
+                ps.executeUpdate();
+            }
+            conn.commit();
+            return true;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
     public static boolean updateRequestDisbursement(String ehcId, String disbursementDetails) {
-        String sql = "UPDATE ehc_requests SET status = 'Disbursed', disbursement_details = ? WHERE ehc_id = ?";
-        try (Connection conn = Db.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, disbursementDetails);
-            ps.setString(2, ehcId);
-            return ps.executeUpdate() > 0;
+        try (Connection conn = Db.getConnection()) {
+            conn.setAutoCommit(false);
+            String oldStatus = null;
+            Long requestId = null;
+            try (PreparedStatement ps = conn.prepareStatement("SELECT request_id, status FROM ehc_requests WHERE ehc_id = ?")) {
+                ps.setString(1, ehcId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        requestId = rs.getLong("request_id");
+                        oldStatus = rs.getString("status");
+                    }
+                }
+            }
+            if (requestId == null) { conn.rollback(); return false; }
+            // Update request
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "UPDATE ehc_requests SET status = 'Disbursed', disbursement_details = ? WHERE ehc_id = ?")) {
+                ps.setString(1, disbursementDetails);
+                ps.setString(2, ehcId);
+                ps.executeUpdate();
+            }
+            // Fetch recommendation_id (latest for this request)
+            long recommendationId = -1;
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT TOP 1 recommendation_id FROM ehc_payment_recommendations WHERE request_id = ? ORDER BY recommendation_id DESC")) {
+                ps.setLong(1, requestId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) recommendationId = rs.getLong(1);
+                }
+            }
+            // If no recommendation exists, create a placeholder one first
+            if (recommendationId == -1) {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "INSERT INTO ehc_payment_recommendations(request_id, recommended_by, total_bill_amount, company_payable_amount, employee_payable_amount, payment_mode, comments) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                        java.sql.Statement.RETURN_GENERATED_KEYS)) {
+                    ps.setLong(1, requestId);
+                    ps.setString(2, "finance");
+                    ps.setBigDecimal(3, java.math.BigDecimal.ZERO);
+                    ps.setBigDecimal(4, java.math.BigDecimal.ZERO);
+                    ps.setBigDecimal(5, java.math.BigDecimal.ZERO);
+                    ps.setString(6, "NEFT");
+                    ps.setString(7, "Auto-created on disbursement");
+                    ps.executeUpdate();
+                    try (ResultSet keys = ps.getGeneratedKeys()) {
+                        if (keys.next()) recommendationId = keys.getLong(1);
+                    }
+                }
+            }
+            // Parse paid amount from disbursementDetails JSON
+            java.math.BigDecimal paidAmount = java.math.BigDecimal.ZERO;
+            String payRef = "";
+            try {
+                Optional<String> pa = JsonUtil.jsonValue(disbursementDetails, "paidAmount");
+                if (pa.isPresent()) paidAmount = new java.math.BigDecimal(pa.get());
+                Optional<String> pr = JsonUtil.jsonValue(disbursementDetails, "referenceNo");
+                if (pr.isPresent()) payRef = pr.get();
+            } catch (Exception ignored) {}
+            // Insert payment
+            if (recommendationId != -1) {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "INSERT INTO ehc_payments(request_id, recommendation_id, processed_by, payment_status, paid_amount, payment_reference_no, payment_date, finance_comments) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")) {
+                    ps.setLong(1, requestId);
+                    ps.setLong(2, recommendationId);
+                    ps.setString(3, "finance");
+                    ps.setString(4, "Processed");
+                    ps.setBigDecimal(5, paidAmount);
+                    ps.setString(6, payRef.isEmpty() ? null : payRef);
+                    ps.setDate(7, Date.valueOf(java.time.LocalDate.now()));
+                    ps.setString(8, disbursementDetails);
+                    ps.executeUpdate();
+                }
+            }
+            // Status history
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "INSERT INTO ehc_status_history(request_id, old_status, new_status, remarks) VALUES (?, ?, ?, ?)")) {
+                ps.setLong(1, requestId);
+                ps.setString(2, oldStatus);
+                ps.setString(3, "Disbursed");
+                ps.setString(4, "Payment disbursed");
+                ps.executeUpdate();
+            }
+            conn.commit();
+            return true;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

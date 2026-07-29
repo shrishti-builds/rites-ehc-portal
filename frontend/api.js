@@ -731,6 +731,27 @@ class RitesEhcApi {
         localStorage.setItem(CONFIG_KEY, JSON.stringify(newConfig));
     }
 
+    // Role-Based Auth Login (Demo)
+    async login(role) {
+        const config = this.getConfig();
+        if (config.mode === 'live') {
+            try {
+                const response = await fetch(`${config.baseUrl}/auth/demo-login?role=${role}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    config.headers['Authorization'] = 'Bearer ' + data.token;
+                    this.updateConfig(config);
+                    return { success: true, role: data.role };
+                }
+                return { success: false, message: 'Login failed' };
+            } catch (e) {
+                console.error("Live Auth Error, falling back to Demo:", e);
+            }
+        }
+        // In demo mode, just pretend we logged in
+        return { success: true, role: role.toUpperCase() };
+    }
+
     // Cities & States
     async getStatesAndCities() {
         const config = this.getConfig();
@@ -815,6 +836,7 @@ class RitesEhcApi {
             try {
                 const response = await fetch(`${config.baseUrl}/employees/${empNo}`, { headers: config.headers });
                 if (response.ok) return await response.json();
+                return null; // 404 or other error — employee not found
             } catch (e) {
                 console.error("Live API Error, falling back to Demo:", e);
             }
@@ -822,18 +844,50 @@ class RitesEhcApi {
         return mockEmployees[empNo] || null;
     }
 
-    // EHC Requests
+    // EHC Requests — paginated + searchable
     async getRequests() {
+        // backward-compat: returns flat array (first page, large size) for old callers
+        const paged = await this.getRequestsPaged(0, 9999, '');
+        return paged.content || paged; // live returns paged obj; demo may return array
+    }
+
+    async getRequestsPaged(page = 0, size = 10, search = '') {
         const config = this.getConfig();
         if (config.mode === 'live') {
             try {
-                const response = await fetch(`${config.baseUrl}/requests`, { headers: config.headers });
-                return await response.json();
+                const params = new URLSearchParams({ page, size, search });
+                const response = await fetch(`${config.baseUrl}/requests?${params}`, { headers: config.headers });
+                return await response.json(); // { content, page, size, totalElements, totalPages, last }
             } catch (e) {
                 console.error("Live API Error, falling back to Demo:", e);
             }
         }
-        return JSON.parse(localStorage.getItem(REQUESTS_KEY));
+
+        // Demo mode: client-side filter + paginate
+        let all = JSON.parse(localStorage.getItem(REQUESTS_KEY)) || [];
+        if (search && search.trim()) {
+            const q = search.trim().toLowerCase();
+            all = all.filter(r =>
+                (r.ehcId       || '').toLowerCase().includes(q) ||
+                (r.empName     || '').toLowerCase().includes(q) ||
+                (r.hospitalName|| '').toLowerCase().includes(q) ||
+                (r.status      || '').toLowerCase().includes(q)
+            );
+        }
+        // Sort newest first (demo data has no created_at, use reverse insertion order)
+        all = [...all].reverse();
+        const totalElements = all.length;
+        const totalPages = size > 0 ? Math.ceil(totalElements / size) : 0;
+        const start = page * size;
+        const content = all.slice(start, start + size);
+        return {
+            content,
+            page,
+            size,
+            totalElements,
+            totalPages,
+            last: page >= totalPages - 1
+        };
     }
 
     async submitRequest(request) {
@@ -916,14 +970,24 @@ class RitesEhcApi {
         return { success: false, message: "Hospital not found" };
     }
 
-    async uploadRequestBill(ehcId, billDetails) {
+    async uploadRequestBill(ehcId, billDetails, file = null) {
         const config = this.getConfig();
         if (config.mode === 'live') {
             try {
+                // Step 4: Use FormData for Multipart Upload
+                const formData = new FormData();
+                formData.append('billDetails', JSON.stringify(billDetails));
+                if (file) {
+                    formData.append('file', file);
+                }
+
+                // Do not set Content-Type header when using FormData; the browser sets it with the boundary
+                const { 'Content-Type': _, ...headersWithoutContentType } = config.headers;
+
                 const response = await fetch(`${config.baseUrl}/requests/${ehcId}/bill`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', ...config.headers },
-                    body: JSON.stringify(billDetails)
+                    method: 'POST', // Changed to POST for multipart
+                    headers: headersWithoutContentType,
+                    body: formData
                 });
                 return await response.json();
             } catch (e) {

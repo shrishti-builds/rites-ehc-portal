@@ -32,7 +32,7 @@ CREATE TABLE ehc_requests (
     emp_name VARCHAR(150) NOT NULL,
     designation VARCHAR(150) NULL,
     division VARCHAR(150) NULL,
-    mobile VARCHAR(10) NOT NULL,
+    mobile VARCHAR(20) NOT NULL,
     landline VARCHAR(30) NULL,
     pu_head VARCHAR(50) NOT NULL,
     state_name VARCHAR(100) NULL,
@@ -116,3 +116,18 @@ CREATE TABLE ehc_payments (
     CONSTRAINT fk_ehc_payment_reco FOREIGN KEY (recommendation_id)
         REFERENCES ehc_payment_recommendations(recommendation_id)
 );
+
+-- ============================================================================
+-- Indexes for Performance & Search Optimization
+-- ============================================================================
+CREATE INDEX idx_ehc_requests_status ON ehc_requests(status);
+CREATE INDEX idx_ehc_requests_emp_no ON ehc_requests(emp_no);
+CREATE INDEX idx_ehc_requests_ehc_id ON ehc_requests(ehc_id);
+CREATE INDEX idx_ehc_requests_created ON ehc_requests(created_at DESC);
+
+CREATE INDEX idx_ehc_hospitals_location ON ehc_hospitals(state_name, city_name);
+CREATE INDEX idx_ehc_hospitals_vendor ON ehc_hospitals(vendor_code);
+
+CREATE INDEX idx_ehc_emp_deps_emp_no ON ehc_employee_dependents(emp_no);
+CREATE INDEX idx_ehc_status_history_req ON ehc_status_history(request_id);
+

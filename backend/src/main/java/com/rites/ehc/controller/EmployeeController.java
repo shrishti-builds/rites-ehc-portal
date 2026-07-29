@@ -1,6 +1,7 @@
 package com.rites.ehc.controller;
 
 import com.rites.ehc.service.EmployeeService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,7 +17,9 @@ public class EmployeeController {
     }
 
     @GetMapping("/employees/{empNo}")
-    public String getEmployee(@PathVariable String empNo) {
-        return employeeService.getEmployeeJson(empNo);
+    public ResponseEntity<String> getEmployee(@PathVariable String empNo) {
+        String json = employeeService.getEmployeeJson(empNo);
+        if (json == null) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(json);
     }
 }

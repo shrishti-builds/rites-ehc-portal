@@ -13,8 +13,11 @@ public class RequestController {
     }
 
     @GetMapping("/requests")
-    public String requests() {
-        return requestService.listRequestsJson();
+    public String requests(
+            @RequestParam(value = "page",   defaultValue = "0")  int page,
+            @RequestParam(value = "size",   defaultValue = "10") int size,
+            @RequestParam(value = "search", defaultValue = "")   String search) {
+        return requestService.listRequestsPagedJson(page, size, search);
     }
 
     @GetMapping("/requests/{ehcId}")
@@ -32,9 +35,12 @@ public class RequestController {
         return requestService.updateStatus(ehcId, body);
     }
 
-    @PutMapping("/requests/{ehcId}/bill")
-    public String uploadBill(@PathVariable String ehcId, @RequestBody String body) {
-        return requestService.uploadBill(ehcId, body);
+    @PostMapping("/requests/{ehcId}/bill")
+    public String uploadBill(
+            @PathVariable String ehcId,
+            @RequestParam(value = "file", required = false) org.springframework.web.multipart.MultipartFile file,
+            @RequestParam("billDetails") String billDetails) {
+        return requestService.uploadBill(ehcId, billDetails, file);
     }
 
     @PutMapping("/requests/{ehcId}/approve-bill")
