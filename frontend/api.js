@@ -853,19 +853,29 @@ class RitesEhcApi {
     async addHospital(hospital) {
         const config = this.getConfig();
         if (config.mode === 'live') {
+            await this.ensureLiveToken();
+            const freshConfig = this.getConfig();
             try {
-                const response = await fetch(`${config.baseUrl}/hospitals`, {
+                const response = await fetch(`${freshConfig.baseUrl}/hospitals`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', ...config.headers },
+                    headers: { 'Content-Type': 'application/json', ...freshConfig.headers },
                     body: JSON.stringify(hospital)
                 });
-                return await response.json();
+                const result = await response.json();
+                if (response.ok) {
+                    // Mirror to localStorage so hospital list refreshes immediately
+                    const hospitals = JSON.parse(localStorage.getItem(HOSPITALS_KEY)) || [];
+                    hospitals.push(hospital);
+                    localStorage.setItem(HOSPITALS_KEY, JSON.stringify(hospitals));
+                    return { success: true, message: result.message || 'Hospital added successfully', data: hospital };
+                }
+                return { success: false, message: result.message || `Server error: ${response.status}` };
             } catch (e) {
                 console.error("Live API Error, falling back to Demo:", e);
             }
         }
 
-        const hospitals = JSON.parse(localStorage.getItem(HOSPITALS_KEY));
+        const hospitals = JSON.parse(localStorage.getItem(HOSPITALS_KEY)) || [];
         hospitals.push(hospital);
         localStorage.setItem(HOSPITALS_KEY, JSON.stringify(hospitals));
         return { success: true, message: "Hospital added successfully", data: hospital };
@@ -1050,19 +1060,33 @@ class RitesEhcApi {
     async updateHospitalRates(vendorCode, rateMale, rateFemale) {
         const config = this.getConfig();
         if (config.mode === 'live') {
+            await this.ensureLiveToken();
+            const freshConfig = this.getConfig();
             try {
-                const response = await fetch(`${config.baseUrl}/hospitals/${vendorCode}/rates`, {
+                const response = await fetch(`${freshConfig.baseUrl}/hospitals/${vendorCode}/rates`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', ...config.headers },
+                    headers: { 'Content-Type': 'application/json', ...freshConfig.headers },
                     body: JSON.stringify({ rateMale, rateFemale })
                 });
-                return await response.json();
+                const result = await response.json();
+                if (response.ok) {
+                    // Mirror to localStorage
+                    const hospitals = JSON.parse(localStorage.getItem(HOSPITALS_KEY)) || [];
+                    const idx = hospitals.findIndex(h => h.vendorCode === vendorCode);
+                    if (idx !== -1) {
+                        hospitals[idx].rateMale = rateMale.toString();
+                        hospitals[idx].rateFemale = rateFemale.toString();
+                        localStorage.setItem(HOSPITALS_KEY, JSON.stringify(hospitals));
+                    }
+                    return { success: true, message: result.message || 'Hospital rates updated successfully' };
+                }
+                return { success: false, message: result.message || `Server error: ${response.status}` };
             } catch (e) {
                 console.error("Live API Error, falling back to Demo:", e);
             }
         }
 
-        const hospitals = JSON.parse(localStorage.getItem(HOSPITALS_KEY));
+        const hospitals = JSON.parse(localStorage.getItem(HOSPITALS_KEY)) || [];
         const index = hospitals.findIndex(h => h.vendorCode === vendorCode);
         if (index !== -1) {
             hospitals[index].rateMale = rateMale.toString();
@@ -1076,29 +1100,40 @@ class RitesEhcApi {
     async uploadRequestBill(ehcId, billDetails, file = null) {
         const config = this.getConfig();
         if (config.mode === 'live') {
+            await this.ensureLiveToken();
+            const freshConfig = this.getConfig();
             try {
-                // Step 4: Use FormData for Multipart Upload
                 const formData = new FormData();
                 formData.append('billDetails', JSON.stringify(billDetails));
-                if (file) {
-                    formData.append('file', file);
-                }
+                if (file) formData.append('file', file);
 
-                // Do not set Content-Type header when using FormData; the browser sets it with the boundary
-                const { 'Content-Type': _, ...headersWithoutContentType } = config.headers;
+                // Do NOT set Content-Type — browser sets it with boundary for FormData
+                const { 'Content-Type': _, ...headersWithoutContentType } = freshConfig.headers;
 
-                const response = await fetch(`${config.baseUrl}/requests/${ehcId}/bill`, {
-                    method: 'POST', // Changed to POST for multipart
+                const response = await fetch(`${freshConfig.baseUrl}/requests/${ehcId}/bill`, {
+                    method: 'POST',
                     headers: headersWithoutContentType,
                     body: formData
                 });
-                return await response.json();
+                const result = await response.json();
+                if (response.ok) {
+                    // Mirror to localStorage
+                    const requests = JSON.parse(localStorage.getItem(REQUESTS_KEY)) || [];
+                    const idx = requests.findIndex(r => r.ehcId === ehcId);
+                    if (idx !== -1) {
+                        requests[idx].status = 'Bill Uploaded';
+                        requests[idx].billDetails = billDetails;
+                        localStorage.setItem(REQUESTS_KEY, JSON.stringify(requests));
+                    }
+                    return { success: true, message: result.message || 'Bill uploaded successfully', data: result.data };
+                }
+                return { success: false, message: result.message || `Server error: ${response.status}` };
             } catch (e) {
                 console.error("Live API Error, falling back to Demo:", e);
             }
         }
 
-        const requests = JSON.parse(localStorage.getItem(REQUESTS_KEY));
+        const requests = JSON.parse(localStorage.getItem(REQUESTS_KEY)) || [];
         const index = requests.findIndex(r => r.ehcId === ehcId);
         if (index !== -1) {
             requests[index].status = 'Bill Uploaded';
@@ -1112,19 +1147,26 @@ class RitesEhcApi {
     async approveRequestBill(ehcId, financeRemarks) {
         const config = this.getConfig();
         if (config.mode === 'live') {
+            await this.ensureLiveToken();
+            const freshConfig = this.getConfig();
             try {
-                const response = await fetch(`${config.baseUrl}/requests/${ehcId}/approve-bill`, {
+                const response = await fetch(`${freshConfig.baseUrl}/requests/${ehcId}/approve-bill`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', ...config.headers },
+                    headers: { 'Content-Type': 'application/json', ...freshConfig.headers },
                     body: JSON.stringify({ financeRemarks })
                 });
-                return await response.json();
-            } catch (e) {
-                console.error("Live API Error, falling back to Demo:", e);
-            }
+                const result = await response.json();
+                if (response.ok) {
+                    const requests = JSON.parse(localStorage.getItem(REQUESTS_KEY)) || [];
+                    const idx = requests.findIndex(r => r.ehcId === ehcId);
+                    if (idx !== -1) { requests[idx].status = 'Bill Approved'; requests[idx].financeRemarks = financeRemarks; localStorage.setItem(REQUESTS_KEY, JSON.stringify(requests)); }
+                    return { success: true, message: result.message || 'Bill approved by finance', data: result.data };
+                }
+                return { success: false, message: result.message || `Server error: ${response.status}` };
+            } catch (e) { console.error("Live API Error, falling back to Demo:", e); }
         }
 
-        const requests = JSON.parse(localStorage.getItem(REQUESTS_KEY));
+        const requests = JSON.parse(localStorage.getItem(REQUESTS_KEY)) || [];
         const index = requests.findIndex(r => r.ehcId === ehcId);
         if (index !== -1) {
             requests[index].status = 'Bill Approved';
@@ -1138,19 +1180,26 @@ class RitesEhcApi {
     async rejectRequestBill(ehcId, financeRemarks) {
         const config = this.getConfig();
         if (config.mode === 'live') {
+            await this.ensureLiveToken();
+            const freshConfig = this.getConfig();
             try {
-                const response = await fetch(`${config.baseUrl}/requests/${ehcId}/reject-bill`, {
+                const response = await fetch(`${freshConfig.baseUrl}/requests/${ehcId}/reject-bill`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', ...config.headers },
+                    headers: { 'Content-Type': 'application/json', ...freshConfig.headers },
                     body: JSON.stringify({ financeRemarks })
                 });
-                return await response.json();
-            } catch (e) {
-                console.error("Live API Error, falling back to Demo:", e);
-            }
+                const result = await response.json();
+                if (response.ok) {
+                    const requests = JSON.parse(localStorage.getItem(REQUESTS_KEY)) || [];
+                    const idx = requests.findIndex(r => r.ehcId === ehcId);
+                    if (idx !== -1) { requests[idx].status = 'Bill Rejected'; requests[idx].financeRemarks = financeRemarks; localStorage.setItem(REQUESTS_KEY, JSON.stringify(requests)); }
+                    return { success: true, message: result.message || 'Bill rejected by finance', data: result.data };
+                }
+                return { success: false, message: result.message || `Server error: ${response.status}` };
+            } catch (e) { console.error("Live API Error, falling back to Demo:", e); }
         }
 
-        const requests = JSON.parse(localStorage.getItem(REQUESTS_KEY));
+        const requests = JSON.parse(localStorage.getItem(REQUESTS_KEY)) || [];
         const index = requests.findIndex(r => r.ehcId === ehcId);
         if (index !== -1) {
             requests[index].status = 'Bill Rejected';
@@ -1164,19 +1213,26 @@ class RitesEhcApi {
     async disburseRequest(ehcId, disbursementDetails) {
         const config = this.getConfig();
         if (config.mode === 'live') {
+            await this.ensureLiveToken();
+            const freshConfig = this.getConfig();
             try {
-                const response = await fetch(`${config.baseUrl}/requests/${ehcId}/disburse`, {
+                const response = await fetch(`${freshConfig.baseUrl}/requests/${ehcId}/disburse`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', ...config.headers },
+                    headers: { 'Content-Type': 'application/json', ...freshConfig.headers },
                     body: JSON.stringify(disbursementDetails)
                 });
-                return await response.json();
-            } catch (e) {
-                console.error("Live API Error, falling back to Demo:", e);
-            }
+                const result = await response.json();
+                if (response.ok) {
+                    const requests = JSON.parse(localStorage.getItem(REQUESTS_KEY)) || [];
+                    const idx = requests.findIndex(r => r.ehcId === ehcId);
+                    if (idx !== -1) { requests[idx].status = 'Disbursed'; requests[idx].disbursementDetails = disbursementDetails; localStorage.setItem(REQUESTS_KEY, JSON.stringify(requests)); }
+                    return { success: true, message: result.message || 'Disbursement completed successfully', data: result.data };
+                }
+                return { success: false, message: result.message || `Server error: ${response.status}` };
+            } catch (e) { console.error("Live API Error, falling back to Demo:", e); }
         }
 
-        const requests = JSON.parse(localStorage.getItem(REQUESTS_KEY));
+        const requests = JSON.parse(localStorage.getItem(REQUESTS_KEY)) || [];
         const index = requests.findIndex(r => r.ehcId === ehcId);
         if (index !== -1) {
             requests[index].status = 'Disbursed';
