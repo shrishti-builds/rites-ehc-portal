@@ -48,31 +48,69 @@ document.addEventListener("DOMContentLoaded", () => {
     function setupPresentationLogin() {
         const loginForm = document.getElementById("presentation-login-form");
         const overlay = document.getElementById("presentation-login-overlay");
+        const logoutBtn = document.getElementById("logout-btn");
+
         if (loginForm && overlay) {
             loginForm.addEventListener("submit", (e) => {
                 e.preventDefault();
                 const username = document.getElementById("login-username").value.toLowerCase();
                 const roleSwitcher = document.getElementById("role-switcher");
-                
+
                 // Smart auto-role switching for presentation based on typed username
                 if (username.includes("hr")) roleSwitcher.value = "HR";
                 else if (username.includes("sbu")) roleSwitcher.value = "SBU";
                 else if (username.includes("fin")) roleSwitcher.value = "FINANCE";
                 else roleSwitcher.value = "EMPLOYEE";
-                
+
                 // Trigger the role switcher logic so the UI updates and token is fetched
                 roleSwitcher.dispatchEvent(new Event("change"));
-                
+
                 // Update profile name
                 document.getElementById("header-user-name").textContent = username.toUpperCase();
-                
+
+                // Show logout button
+                if (logoutBtn) logoutBtn.style.display = "flex";
+
+                // Apply role-based nav visibility
+                applyRoleNavVisibility(roleSwitcher.value);
+
                 // Fade out overlay
                 overlay.style.opacity = "0";
-                setTimeout(() => {
-                    overlay.style.display = "none";
-                }, 500);
+                setTimeout(() => { overlay.style.display = "none"; }, 500);
             });
         }
+
+        // Logout: show login screen again
+        if (logoutBtn) {
+            logoutBtn.addEventListener("click", () => {
+                overlay.style.display = "flex";
+                overlay.style.opacity = "1";
+                document.getElementById("login-username").value = "";
+                document.getElementById("login-password").value = "";
+                logoutBtn.style.display = "none";
+                document.getElementById("header-user-name").textContent = "Administrator";
+                // Reset nav to show all
+                applyRoleNavVisibility("ALL");
+            });
+        }
+    }
+
+    function applyRoleNavVisibility(role) {
+        // Show all nav sections first
+        document.querySelectorAll("[data-role-section], [data-role-item]").forEach(el => {
+            el.style.display = "";
+        });
+        // Hide sections not relevant to role
+        if (role === "EMPLOYEE") {
+            document.querySelectorAll("[data-role-section='SBU'], [data-role-item='SBU'], [data-role-section='HR'], [data-role-item='HR'], [data-role-section='FINANCE'], [data-role-item='FINANCE']").forEach(el => el.style.display = "none");
+        } else if (role === "SBU") {
+            document.querySelectorAll("[data-role-section='HR'], [data-role-item='HR'], [data-role-section='FINANCE'], [data-role-item='FINANCE']").forEach(el => el.style.display = "none");
+        } else if (role === "HR") {
+            document.querySelectorAll("[data-role-section='SBU'], [data-role-item='SBU'], [data-role-section='FINANCE'], [data-role-item='FINANCE']").forEach(el => el.style.display = "none");
+        } else if (role === "FINANCE") {
+            document.querySelectorAll("[data-role-section='SBU'], [data-role-item='SBU'], [data-role-section='HR'], [data-role-item='HR']").forEach(el => el.style.display = "none");
+        }
+        // ALL role shows everything (admin / after logout)
     }
 
     // Role Switcher implementation

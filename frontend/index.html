@@ -73,13 +73,13 @@
                 </a>
             </div>
 
-            <div class="nav-section">SBU</div>
-            <a href="#" class="nav-item" data-target="sbu-approve-view">
+            <div class="nav-section" data-role-section="SBU">SBU</div>
+            <a href="#" class="nav-item" data-target="sbu-approve-view" data-role-item="SBU">
                 <i class="fas fa-check-double"></i> Approve/Reject
             </a>
 
-            <div class="nav-section">HR</div>
-            <a href="#" class="nav-item" data-target="hr-approve-view">
+            <div class="nav-section" data-role-section="HR">HR</div>
+            <a href="#" class="nav-item" data-target="hr-approve-view" data-role-item="HR">
                 <i class="fas fa-user-shield"></i> Approve/Reject
             </a>
             <div class="nav-sub-items">
@@ -91,8 +91,8 @@
                 </a>
             </div>
 
-            <div class="nav-section">FINANCE</div>
-            <a href="#" class="nav-item" data-target="finance-bill-view">
+            <div class="nav-section" data-role-section="FINANCE">FINANCE</div>
+            <a href="#" class="nav-item" data-target="finance-bill-view" data-role-item="FINANCE">
                 <i class="fas fa-file-invoice-dollar"></i> Bill
             </a>
             <a href="#" class="nav-item" data-target="finance-prepare-view">
@@ -126,6 +126,10 @@
             <div class="user-profile" id="user-profile-btn" title="Open API Connection Settings">
                 <span id="header-user-name" style="font-size: 13px; font-weight: 500; color: var(--text-muted);">Administrator</span>
                 <div class="user-avatar" style="display: flex; align-items: center; justify-content: center; background-color: var(--border-color); color: var(--text-muted); width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--border-color);"><i class="fas fa-user"></i></div>
+            </div>
+            <!-- Logout Button -->
+            <div id="logout-btn" title="Logout" style="display:none; margin-left:10px; cursor:pointer; background:#fff3f3; border:1px solid #ffcccc; color:#d00; border-radius:6px; padding:6px 14px; font-size:13px; font-weight:600; align-items:center; gap:6px;">
+                <i class="fas fa-sign-out-alt"></i> Logout
             </div>
         </header>
 
