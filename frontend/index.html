@@ -44,11 +44,11 @@
                 <i class="fas fa-chart-line"></i> Dashboard Overview
             </a>
 
-            <div class="nav-section">ADMIN</div>
-            <div class="nav-item" style="cursor: default; background: transparent; font-weight: 600;">
+            <div class="nav-section" data-role-section="ADMIN">ADMIN</div>
+            <div class="nav-item" data-role-item="ADMIN" style="cursor: default; background: transparent; font-weight: 600;">
                 <i class="fas fa-hospital"></i> Hospital Master
             </div>
-            <div class="nav-sub-items">
+            <div class="nav-sub-items" data-role-item="ADMIN">
                 <a href="#" class="nav-sub-item active" data-target="add-hospital-view">
                     <i class="fas fa-th-large"></i> Add Hospital
                 </a>
@@ -59,15 +59,15 @@
                     <i class="fas fa-th-large"></i> Update Hospital Rates
                 </a>
             </div>
-            <a href="#" class="nav-item" data-target="city-master-view">
+            <a href="#" class="nav-item" data-target="city-master-view" data-role-item="ADMIN">
                 <i class="fas fa-city"></i> City Master
             </a>
             
-            <div class="nav-section">EMPLOYEE</div>
-            <div class="nav-item" style="cursor: default; background: transparent; font-weight: 600;">
+            <div class="nav-section" data-role-section="EMPLOYEE">EMPLOYEE</div>
+            <div class="nav-item" data-role-item="EMPLOYEE" style="cursor: default; background: transparent; font-weight: 600;">
                 <i class="fas fa-user-check"></i> Executive Health Checkup
             </div>
-            <div class="nav-sub-items">
+            <div class="nav-sub-items" data-role-item="EMPLOYEE">
                 <a href="#" class="nav-sub-item" data-target="health-request-view">
                     <i class="fas fa-file-medical"></i> Health Checkup Request
                 </a>
@@ -82,7 +82,7 @@
             <a href="#" class="nav-item" data-target="hr-approve-view" data-role-item="HR">
                 <i class="fas fa-user-shield"></i> Approve/Reject
             </a>
-            <div class="nav-sub-items">
+            <div class="nav-sub-items" data-role-item="HR">
                 <a href="#" class="nav-sub-item" data-target="hr-issue-view">
                     <i class="fas fa-envelope-open-text"></i> Issue Letter
                 </a>
@@ -95,7 +95,7 @@
             <a href="#" class="nav-item" data-target="finance-bill-view" data-role-item="FINANCE">
                 <i class="fas fa-file-invoice-dollar"></i> Bill
             </a>
-            <a href="#" class="nav-item" data-target="finance-prepare-view">
+            <a href="#" class="nav-item" data-target="finance-prepare-view" data-role-item="FINANCE">
                 <i class="fas fa-receipt"></i> Prepare Bill
             </a>
         </nav>
