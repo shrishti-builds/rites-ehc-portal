@@ -1441,7 +1441,23 @@ document.addEventListener("DOMContentLoaded", () => {
             tbody.appendChild(tr);
         });
 
-        tbody.querySelectorAll(".audit-bill-trigger").forEach(btn => {
+    window.viewBillFile = function() {
+        const req = window._currentAuditReq;
+        if (!req) return;
+        
+        const config = window.api.getConfig();
+        const fileName = req.billDetails.fileName || req.billDetails.billFile || 'bill.pdf';
+        
+        if (config.mode === 'live' && req.billDetails.uploadedFilePath) {
+            // Real file on backend server
+            const backendUrl = config.baseUrl.replace('/api', '');
+            window.open(`${backendUrl}/uploads/${fileName}`, '_blank');
+        } else {
+            alert(`Opening attached bill: ${fileName}\n\n(In a real production environment, this would download or open the PDF file.)`);
+        }
+    };
+
+    tbody.querySelectorAll(".audit-bill-trigger").forEach(btn => {
             btn.addEventListener("click", () => {
                 const ehcId = btn.dataset.ehcid;
                 const req = eligible.find(r => r.ehcId === ehcId);
@@ -1453,7 +1469,23 @@ document.addEventListener("DOMContentLoaded", () => {
                 document.getElementById("audit-billno").textContent = req.billDetails.billNumber;
                 document.getElementById("audit-billdate").textContent = formatDate(req.billDetails.billDate);
                 document.getElementById("audit-billamount").textContent = req.billDetails.billAmount;
-                document.getElementById("audit-filename").textContent = req.billDetails.fileName;
+
+                // Set filename link
+                const fileName = req.billDetails.fileName || req.billDetails.billFile || 'bill_' + ehcId + '.pdf';
+                const config = window.api.getConfig();
+                const fileLink = document.getElementById("audit-filename");
+                fileLink.textContent = fileName;
+                if (config.mode === 'live' && req.billDetails.uploadedFilePath) {
+                    // Real file on backend server
+                    const backendUrl = config.baseUrl.replace('/api', '');
+                    fileLink.href = `${backendUrl}/uploads/${fileName}`;
+                } else {
+                    // Demo mode or no file - show placeholder
+                    fileLink.href = '#';
+                    fileLink.onclick = (e) => { e.preventDefault(); window.viewBillFile(); };
+                }
+                // Store req on window for viewBillFile
+                window._currentAuditReq = req;
 
                 document.getElementById("btn-finance-approve-bill").dataset.ehcid = ehcId;
                 document.getElementById("btn-finance-reject-bill").dataset.ehcid = ehcId;
