@@ -53,26 +53,52 @@ document.addEventListener("DOMContentLoaded", () => {
         if (loginForm && overlay) {
             loginForm.addEventListener("submit", (e) => {
                 e.preventDefault();
-                const username = document.getElementById("login-username").value.toLowerCase();
+                const username = document.getElementById("login-username").value.toLowerCase().trim();
+                const password = document.getElementById("login-password").value.trim();
+                const loginError = document.getElementById("login-error");
+
+                // Simple local credential check for demo presentation
+                const validCredentials = {
+                    "employee": "emp123",
+                    "sbu": "sbu123",
+                    "hr": "hr123",
+                    "finance": "fin123",
+                    "admin": "admin123"
+                };
+
+                // Check if password matches (demo mode) OR allow any password when in live mode
+                const config = window.api.getConfig();
+                const expectedPassword = validCredentials[username];
+                const isValid = config.mode === 'live' 
+                    ? (expectedPassword && password === expectedPassword) || password.length >= 3
+                    : (expectedPassword && password === expectedPassword);
+
+                if (!username || !password) {
+                    if (loginError) { loginError.textContent = "Please enter username and password."; loginError.style.display = "block"; }
+                    return;
+                }
+
+                // For Live mode, accept any credentials with valid password length
+                // For Demo mode, check exact credentials
+                if (config.mode === 'demo' && expectedPassword && password !== expectedPassword) {
+                    if (loginError) { loginError.textContent = "Invalid username or password. Try: employee/emp123, hr/hr123, sbu/sbu123, finance/fin123"; loginError.style.display = "block"; }
+                    return;
+                }
+
+                if (loginError) loginError.style.display = "none";
+
                 const roleSwitcher = document.getElementById("role-switcher");
 
                 // Smart auto-role switching for presentation based on typed username
                 if (username.includes("hr")) roleSwitcher.value = "HR";
                 else if (username.includes("sbu")) roleSwitcher.value = "SBU";
                 else if (username.includes("fin")) roleSwitcher.value = "FINANCE";
+                else if (username.includes("admin")) roleSwitcher.value = "HR"; // admin uses HR role
                 else roleSwitcher.value = "EMPLOYEE";
 
-                // Fetch token and refresh UI
-                window.api.login(roleSwitcher.value).then(res => {
-                    const roleLoginStatus = document.getElementById("role-login-status");
-                    if (res.success && window.api.getConfig().mode === 'live') {
-                        if (roleLoginStatus) roleLoginStatus.style.display = "inline";
-                    } else {
-                        if (roleLoginStatus) roleLoginStatus.style.display = "none";
-                    }
-                    const activeView = document.querySelector(".view-section.active");
-                    if (activeView) switchView(activeView.id);
-                });
+                // ALWAYS hide overlay immediately - don't wait for backend
+                overlay.style.opacity = "0";
+                setTimeout(() => { overlay.style.display = "none"; }, 500);
 
                 // Update profile name
                 document.getElementById("header-user-name").textContent = username.toUpperCase();
@@ -83,9 +109,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 // Apply role-based nav visibility
                 applyRoleNavVisibility(roleSwitcher.value);
 
-                // Fade out overlay
-                overlay.style.opacity = "0";
-                setTimeout(() => { overlay.style.display = "none"; }, 500);
+                // Fetch token in background (non-blocking)
+                window.api.login(roleSwitcher.value).then(res => {
+                    const roleLoginStatus = document.getElementById("role-login-status");
+                    if (res.success && window.api.getConfig().mode === 'live') {
+                        if (roleLoginStatus) roleLoginStatus.style.display = "inline";
+                    } else {
+                        if (roleLoginStatus) roleLoginStatus.style.display = "none";
+                    }
+                    const activeView = document.querySelector(".view-section.active");
+                    if (activeView) switchView(activeView.id);
+                });
             });
         }
 
