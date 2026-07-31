@@ -1467,17 +1467,20 @@ document.addEventListener("DOMContentLoaded", () => {
             // Real file on backend server
             const backendUrl = config.baseUrl.replace('/api', '');
             window.open(`${backendUrl}/uploads/${fileName}`, '_blank');
-        } else if (req.billDetails.fileData) {
-            // Open base64 file data in a new window/iframe
+        } else {
+            // Use saved base64 or a dummy blank PDF base64 for demo purposes
+            // This is a minimal valid PDF base64 string (a blank page with text "RITES EHC BILL PREVIEW")
+            const dummyPdf = "data:application/pdf;base64,JVBERi0xLjQKMSAwIG9iago8PAovVGl0bGUgKEJpbGwgUHJldmlldykKL0NyZWF0b3IgKFJJVEVTIEVIQyBTeXN0ZW0pCj4+CmVuZG9iCjIgMCBvYmoKPDwKL1R5cGUgL0NhdGFsb2cKL1BhZ2VzIDMgMCBSCj4+CmVuZG9iCjMgMCBvYmoKPDwKL1R5cGUgL1BhZ2VzCi9Db3VudCAxCi9LaWRzIFs0IDAgUl0KPj4KZW5kb2IKNCAwIG9iago8PAovVHlwZSAvUGFnZQovUGFyZW50IDMgMCBSCi9NZWRpYUJveCBbMCAwIDU5NSA4NDJdCi9Db250ZW50cyA1IDAgUgovUmVzb3VyY2VzIDw8Ci9Gb250IDw8Ci9GMSA2IDAgUgo+Pgo+Pgo+PgplbmRvYgo1IDAgb2JqCjw8Ci9MZW5ndGggNDMKPj4Kc3RyZWFtCkJUCi9GMSAyNCBUZgoxMDAgNzAwIFRkCihSSVRFUyBFSEMgQklMTCBQUkVWSUVXKSBUagpFVAplbmRzdHJlYW0KZW5kb2IKNiAwIG9iago8PAovVHlwZSAvRm9udAovU3VidHlwZSAvVHlwZTEKL0Jhc2VGb250IC9IZWx2ZXRpY2EtdW5pY29kZQo+PgplbmRvYgp4cmVmCjAgNwowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDA5NiAwMDAwMCBuIAowMDAwMDAwMTQ1IDAwMDAwIG4gCjAwMDAwMDAyMDQgMDAwMDAgbiAKMDAwMDAwMDMwMiAwMDAwMCBuIAowMDAwMDAwMzk0IDAwMDAwIG4gCnRyYWlsZXIKPDwKL1NpemUgNwovUm9vdCAyIDAgUgovSW5mbyAxIDAgUgo+PgpzdGFydHhyZWYKNDgzCiUlRU9G";
+            
+            const fileData = req.billDetails.fileData || dummyPdf;
+            
             const newWindow = window.open();
             if (newWindow) {
-                newWindow.document.write(`<iframe src="${req.billDetails.fileData}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                newWindow.document.write(`<iframe src="${fileData}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
                 newWindow.document.title = fileName;
             } else {
                 alert("Popup blocked! Please allow popups for this site to view the bill.");
             }
-        } else {
-            alert(`Opening attached bill: ${fileName}\n\n(In a real production environment, this would download or open the PDF file.)`);
         }
     };
 
