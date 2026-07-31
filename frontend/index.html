@@ -16,21 +16,81 @@
             <h2 style="color: #1a7043; margin-bottom: 10px; font-family: 'Poppins', sans-serif;">EHC Portal Access</h2>
             <p style="color: #666; font-size: 14px; margin-bottom: 30px;">Please authenticate to continue.</p>
             
-            <form id="presentation-login-form">
-                <div style="text-align: left; margin-bottom: 20px;">
-                    <label style="display: block; font-size: 12px; font-weight: 600; color: #333; margin-bottom: 5px;">Employee ID / Username</label>
-                    <input type="text" id="login-username" required style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; outline: none;">
-                </div>
-                <div style="text-align: left; margin-bottom: 25px;">
-                    <label style="display: block; font-size: 12px; font-weight: 600; color: #333; margin-bottom: 5px;">Password</label>
-                    <input type="password" id="login-password" required style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; outline: none;">
-                </div>
-                <button type="submit" style="width: 100%; background: #1a7043; color: white; border: none; padding: 12px; border-radius: 6px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.3s;">Secure Login</button>
-                <div id="login-error" style="display:none; margin-top:12px; color:#c0392b; font-size:13px; background:#fdf0f0; padding:10px; border-radius:6px; text-align:left;"></div>
-            </form>
+            <!-- No form tag, no required, no autocomplete issues -->
+            <div style="text-align: left; margin-bottom: 20px;">
+                <label style="display: block; font-size: 12px; font-weight: 600; color: #333; margin-bottom: 5px;">Employee ID / Username</label>
+                <input type="text" id="login-username" autocomplete="off" placeholder="e.g. employee, hr, sbu, finance" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; outline: none; box-sizing: border-box;">
+            </div>
+            <div style="text-align: left; margin-bottom: 25px;">
+                <label style="display: block; font-size: 12px; font-weight: 600; color: #333; margin-bottom: 5px;">Password</label>
+                <input type="password" id="login-password" autocomplete="new-password" placeholder="Enter password" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; outline: none; box-sizing: border-box;">
+            </div>
+            <div id="login-error" style="display:none; margin-bottom:12px; color:#c0392b; font-size:13px; background:#fdf0f0; padding:10px; border-radius:6px; text-align:left;"></div>
+            <button type="button" id="login-btn" onclick="doPortalLogin()" style="width: 100%; background: #1a7043; color: white; border: none; padding: 12px; border-radius: 6px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.3s;">Secure Login</button>
             <p style="margin-top: 15px; font-size: 11px; color: #bbb;">Demo Credentials &mdash; employee/emp123 &bull; hr/hr123 &bull; sbu/sbu123 &bull; finance/fin123</p>
         </div>
     </div>
+    <script>
+    // Standalone login handler - runs before app.js, no dependencies
+    function doPortalLogin() {
+        var username = document.getElementById('login-username').value.toLowerCase().trim();
+        var password = document.getElementById('login-password').value.trim();
+        var errDiv = document.getElementById('login-error');
+
+        var creds = { employee:'emp123', hr:'hr123', sbu:'sbu123', finance:'fin123', admin:'admin123' };
+
+        if (!username || !password) {
+            errDiv.textContent = 'Please enter username and password.';
+            errDiv.style.display = 'block';
+            return;
+        }
+        if (creds[username] && password !== creds[username]) {
+            errDiv.textContent = 'Wrong password! Use: employee/emp123 \u2022 hr/hr123 \u2022 sbu/sbu123 \u2022 finance/fin123';
+            errDiv.style.display = 'block';
+            return;
+        }
+        errDiv.style.display = 'none';
+
+        // Set role switcher
+        var role = 'EMPLOYEE';
+        if (username.includes('hr') || username.includes('admin')) role = 'HR';
+        else if (username.includes('sbu')) role = 'SBU';
+        else if (username.includes('fin')) role = 'FINANCE';
+        var rs = document.getElementById('role-switcher');
+        if (rs) rs.value = role;
+
+        // Hide overlay immediately
+        var overlay = document.getElementById('presentation-login-overlay');
+        overlay.style.opacity = '0';
+        setTimeout(function() { overlay.style.display = 'none'; }, 500);
+
+        // Update header
+        var nameEl = document.getElementById('header-user-name');
+        if (nameEl) nameEl.textContent = username.toUpperCase();
+
+        // Show logout button
+        var lb = document.getElementById('logout-btn');
+        if (lb) lb.style.display = 'flex';
+
+        // Apply role nav - call app.js function if loaded
+        if (typeof applyRoleNavVisibilityGlobal === 'function') {
+            applyRoleNavVisibilityGlobal(role);
+        }
+
+        // Fetch JWT token in background
+        if (window.api && window.api.login) {
+            window.api.login(role);
+        }
+    }
+    // Allow Enter key on password field
+    document.addEventListener('DOMContentLoaded', function() {
+        var pw = document.getElementById('login-password');
+        if (pw) pw.addEventListener('keydown', function(e) { if (e.key === 'Enter') doPortalLogin(); });
+        var un = document.getElementById('login-username');
+        if (un) un.addEventListener('keydown', function(e) { if (e.key === 'Enter') doPortalLogin(); });
+    });
+    </script>
+
 
     <!-- Left Navigation Sidebar -->
     <aside class="sidebar">

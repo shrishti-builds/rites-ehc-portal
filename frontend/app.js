@@ -155,6 +155,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         // ALL role shows everything (admin / after logout)
     }
+    // Expose globally so inline script in index.html can call it
+    window.applyRoleNavVisibilityGlobal = applyRoleNavVisibility;
 
     // Role Switcher implementation
     function setupRoleSwitcher() {
