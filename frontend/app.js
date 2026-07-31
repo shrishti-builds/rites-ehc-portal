@@ -1081,6 +1081,21 @@ document.addEventListener("DOMContentLoaded", () => {
                     fileName: file ? file.name : ("invoice_" + ehcId + ".pdf")
                 };
 
+                // Read file as Base64 for demo mode preview
+                if (file) {
+                    try {
+                        const base64 = await new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = () => resolve(reader.result);
+                            reader.onerror = error => reject(error);
+                            reader.readAsDataURL(file);
+                        });
+                        billDetails.fileData = base64;
+                    } catch (e) {
+                        console.error("Failed to read file for preview", e);
+                    }
+                }
+
                 const res = await window.api.uploadRequestBill(ehcId, billDetails, file);
                 if (res.success) {
                     alert("Clinic bill details uploaded successfully!");
@@ -1452,6 +1467,15 @@ document.addEventListener("DOMContentLoaded", () => {
             // Real file on backend server
             const backendUrl = config.baseUrl.replace('/api', '');
             window.open(`${backendUrl}/uploads/${fileName}`, '_blank');
+        } else if (req.billDetails.fileData) {
+            // Open base64 file data in a new window/iframe
+            const newWindow = window.open();
+            if (newWindow) {
+                newWindow.document.write(`<iframe src="${req.billDetails.fileData}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                newWindow.document.title = fileName;
+            } else {
+                alert("Popup blocked! Please allow popups for this site to view the bill.");
+            }
         } else {
             alert(`Opening attached bill: ${fileName}\n\n(In a real production environment, this would download or open the PDF file.)`);
         }
