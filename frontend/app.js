@@ -161,26 +161,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const roleSwitcher = document.getElementById("role-switcher");
         const roleLoginStatus = document.getElementById("role-login-status");
         if (roleSwitcher) {
-            // Initial login based on default value
+            // Initial token fetch in background
             window.api.login(roleSwitcher.value).then(res => {
                 if (res.success && window.api.getConfig().mode === 'live') {
-                    roleLoginStatus.style.display = "inline";
+                    if (roleLoginStatus) roleLoginStatus.style.display = "inline";
                 }
             });
-
-            roleSwitcher.addEventListener("change", (e) => {
-                const overlay = document.getElementById("presentation-login-overlay");
-                const logoutBtn = document.getElementById("logout-btn");
-                if (overlay) {
-                    overlay.style.display = "flex";
-                    overlay.style.opacity = "1";
-                    document.getElementById("login-username").value = "";
-                    document.getElementById("login-password").value = "";
-                    if (logoutBtn) logoutBtn.style.display = "none";
-                    document.getElementById("header-user-name").textContent = "Administrator";
-                    applyRoleNavVisibility("ALL");
-                }
-            });
+            // Note: change event removed - role is now set via login screen only
         }
     }
 

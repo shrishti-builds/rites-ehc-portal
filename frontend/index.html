@@ -112,16 +112,15 @@
                 <span id="mode-badge" class="config-badge demo">Demo Mode</span>
             </div>
             
-            <!-- Step 3: JWT Role Switcher for Demo/Presentation -->
-            <div style="display: flex; align-items: center; gap: 10px; margin-right: 20px; border-right: 1px solid var(--border-color); padding-right: 20px;">
-                <label for="role-switcher" style="font-size: 13px; font-weight: 600; color: var(--primary-blue);"><i class="fas fa-id-badge"></i> Active Role:</label>
-                <select id="role-switcher" class="form-control" style="width: auto; padding: 4px 10px; font-size: 12px; font-weight: 500; border-radius: 4px; border: 1px solid var(--border-color);">
+            <!-- Step 3: JWT Role Switcher (hidden - role set from login screen) -->
+            <div style="display: none;">
+                <select id="role-switcher" class="form-control">
                     <option value="EMPLOYEE">Employee</option>
                     <option value="SBU">SBU Head</option>
                     <option value="HR">HR Admin</option>
                     <option value="FINANCE">Finance Dept</option>
                 </select>
-                <span id="role-login-status" style="font-size: 11px; color: var(--rites-green); font-weight: 600; display: none;"><i class="fas fa-check-circle"></i> Authenticated</span>
+                <span id="role-login-status" style="display: none;"></span>
             </div>
 
             <div class="user-profile" id="user-profile-btn" title="Open API Connection Settings">
